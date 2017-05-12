@@ -26,6 +26,7 @@
 void init_schemachange_type(struct schema_change_type *sc)
 {
     memset(sc, 0, sizeof(struct schema_change_type));
+    sc->tran = NULL;
     sc->type = DBTYPE_TAGGED_TABLE;
     sc->sb = NULL;
     sc->newcsc2 = NULL;

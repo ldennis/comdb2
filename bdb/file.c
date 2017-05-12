@@ -108,7 +108,7 @@ static int bdb_del_file(bdb_state_type *bdb_state, DB_TXN *tid, char *filename,
                         int *bdberr);
 static int bdb_free_int(bdb_state_type *bdb_state, bdb_state_type *replace,
                         int *bdberr);
-static int bdb_close_only_int(bdb_state_type *bdb_state, int *bdberr);
+static int bdb_close_only_int(bdb_state_type *bdb_state, DB_TXN *tid, int *bdberr);
 
 int bdb_rename_file(bdb_state_type *bdb_state, DB_TXN *tid, char *oldfile,
                     char *newfile, int *bdberr);
@@ -1395,7 +1395,7 @@ static void send_decom_all(bdb_state_type *bdb_state, char *decom_node)
  * Hence this function will now never fail - although it may spit out errors.
  * After this is called, the db is closed.
  */
-static int closedbs_int(bdb_state_type *bdb_state, int nosync)
+static int closedbs_int(bdb_state_type *bdb_state, DB_TXN *tid, int nosync)
 
 {
     int rc;
@@ -1417,7 +1417,7 @@ static int closedbs_int(bdb_state_type *bdb_state, int nosync)
         for (strnum = 0; strnum < MAXSTRIPE; strnum++) {
             if (bdb_state->dbp_data[dtanum][strnum]) {
                 rc = bdb_state->dbp_data[dtanum][strnum]->close(
-                    bdb_state->dbp_data[dtanum][strnum], flags);
+                    bdb_state->dbp_data[dtanum][strnum], tid, flags);
                 if (0 != rc) {
                     logmsg(LOGMSG_ERROR, 
                            "closedbs: error closing %s[%d][%d]: %d %s\n",
@@ -1430,7 +1430,7 @@ static int closedbs_int(bdb_state_type *bdb_state, int nosync)
     if (bdb_state->bdbtype == BDBTYPE_TABLE) {
         for (i = 0; i < bdb_state->numix; i++) {
             /*fprintf(stderr, "closing ix %d\n", i);*/
-            rc = bdb_state->dbp_ix[i]->close(bdb_state->dbp_ix[i], flags);
+            rc = bdb_state->dbp_ix[i]->close(bdb_state->dbp_ix[i], tid, flags);
             if (rc != 0) {
                 logmsg(LOGMSG_ERROR, 
                         "closedbs: error closing %s->dbp_ix[%d] %d %s\n",
@@ -1450,9 +1450,9 @@ static int closedbs_int(bdb_state_type *bdb_state, int nosync)
     return 0;
 }
 
-static int closedbs(bdb_state_type *bdb_state)
+static int closedbs(bdb_state_type *bdb_state, DB_TXN *tid)
 {
-    return closedbs_int(bdb_state, 1);
+    return closedbs_int(bdb_state, tid, 1);
 }
 
 int bdb_isopen(bdb_state_type *bdb_handle) { return bdb_handle->isopen; }
@@ -1576,7 +1576,7 @@ static int bdb_close_int(bdb_state_type *bdb_state, int envonly)
 
     /* close all database files.   doesn't fail. */
     if (!envonly) {
-        rc = closedbs(bdb_state);
+        rc = closedbs(bdb_state, NULL);
     }
 
     /* now do it for all of our children */
@@ -1586,7 +1586,7 @@ static int bdb_close_int(bdb_state_type *bdb_state, int envonly)
 
         /* close all of our databases.  doesn't fail. */
         if (child) {
-            rc = closedbs(child);
+            rc = closedbs(child, NULL);
             bdb_access_destroy(child);
         }
     }
@@ -1641,7 +1641,7 @@ static int bdb_close_int(bdb_state_type *bdb_state, int envonly)
 int bdb_handle_reset_tran(bdb_state_type *bdb_state, tran_type *trans)
 {
     DB_TXN *tid = trans ? trans->tid : NULL;
-    int rc = closedbs(bdb_state);
+    int rc = closedbs(bdb_state, tid);
     if (rc != 0) {
         logmsg(LOGMSG_ERROR, "upgrade: open_dbs as master failed\n");
         return -1;
@@ -4069,7 +4069,7 @@ static int open_dbs(bdb_state_type *bdb_state, int iammaster, int upgrade,
 
                     print(bdb_state, "open_dbs: cannot open %s: %d %s\n",
                           tmpname, rc, db_strerror(rc));
-                    rc = dbp->close(dbp, 0);
+                    rc = dbp->close(dbp, NULL, 0);
                     if (0 != rc)
                         logmsg(LOGMSG_ERROR, "DB->close(%s) failed: rc=%d %s\n",
                                 tmpname, rc, db_strerror(rc));
@@ -4172,7 +4172,7 @@ static int open_dbs(bdb_state_type *bdb_state, int iammaster, int upgrade,
 
             print(bdb_state, "open_dbs: cannot open %s: %d %s\n", tmpname, rc,
                   db_strerror(rc));
-            rc = dbp->close(dbp, 0);
+            rc = dbp->close(dbp, NULL, 0);
             if (rc != 0)
                 logmsg(LOGMSG_ERROR, "bdp_dta->close(%s) failed: rc=%d %s\n",
                         tmpname, rc, db_strerror(rc));
@@ -4306,7 +4306,7 @@ static int open_dbs(bdb_state_type *bdb_state, int iammaster, int upgrade,
 
                 bdb_state->dbp_ix[i]->err(bdb_state->dbp_ix[i], rc, "%s",
                                           tmpname);
-                rc = bdb_state->dbp_ix[i]->close(bdb_state->dbp_ix[i], 0);
+                rc = bdb_state->dbp_ix[i]->close(bdb_state->dbp_ix[i], NULL, 0);
                 logmsg(LOGMSG_ERROR, "close ix=%d name=%s failed rc=%d\n", i,
                         tmpname, rc);
                 logmsg(LOGMSG_ERROR, "couldnt open ix db\n");
@@ -4499,7 +4499,7 @@ int bdb_create_stripes_int(bdb_state_type *bdb_state, int newdtastripe,
 
                 logmsg(LOGMSG_ERROR, "bdb_create_stripes_int: cannot open %s: %d %s\n",
                         tmpname, rc, db_strerror(rc));
-                rc = dbp->close(dbp, 0);
+                rc = dbp->close(dbp, NULL, 0);
                 if (0 != rc)
                     logmsg(LOGMSG_ERROR, "DB->close(%s) failed: rc=%d %s\n", tmpname,
                             rc, db_strerror(rc));
@@ -4524,7 +4524,7 @@ int bdb_create_stripes_int(bdb_state_type *bdb_state, int newdtastripe,
 
     /* Now go and close all the tables. */
     for (ii = 0; ii < dbp_count; ii++) {
-        rc = dbp_array[ii]->close(dbp_array[ii], 0);
+        rc = dbp_array[ii]->close(dbp_array[ii], NULL, 0);
         if (0 != rc)
             logmsg(LOGMSG_ERROR,
                     "bdb_create_stripes_int: DB->close #%d failed: rc=%d %s\n",
@@ -4605,7 +4605,7 @@ static int bdb_reopen_int(bdb_state_type *bdb_state)
 
     if (!bdb_state->envonly) {
         /* close all of our databases.  doesn't fail */
-        rc = closedbs(bdb_state);
+        rc = closedbs(bdb_state, NULL);
 
         /* fprintf(stderr, "back from closedbs\n"); */
 
@@ -4628,7 +4628,7 @@ static int bdb_reopen_int(bdb_state_type *bdb_state)
             child->read_write = 0;
 
             /* close all of our databases.  doesn't fail */
-            rc = closedbs(child);
+            rc = closedbs(child, NULL);
 
             /* fprintf(stderr, "back from closedbs\n"); */
 
@@ -6237,7 +6237,7 @@ int bdb_truncate_int(bdb_state_type *bdb_state, int *bdberr)
 
     BDB_READLOCK("bdb_truncate_int");
 
-    rc = bdb_close_only_int(bdb_state, bdberr);
+    rc = bdb_close_only_int(bdb_state, NULL, bdberr);
     if (rc != 0) {
         logmsg(LOGMSG_ERROR, "error closing file rc=%d\n", rc);
         return rc;
@@ -6387,7 +6387,7 @@ static int bdb_del_file(bdb_state_type *bdb_state, DB_TXN *tid, char *filename,
         if ((rc = db_create(&dbp, dbenv, 0)) == 0 &&
             (rc = dbp->open(dbp, NULL, pname, NULL, DB_BTREE, 0, 0666)) == 0) {
             bdb_remove_fileid_pglogs_queue(bdb_state, dbp->fileid);
-            dbp->close(dbp, DB_NOSYNC);
+            dbp->close(dbp, NULL, DB_NOSYNC);
         }
 
         rc = dbenv->dbremove(dbenv, tid, filename, NULL, 0);
@@ -6739,7 +6739,7 @@ int bdb_close_temp_state(bdb_state_type *bdb_state, int *bdberr)
         return 0;
 
     /* close doesn't fail */
-    rc = closedbs(bdb_state);
+    rc = closedbs(bdb_state, NULL);
 
     return rc;
 }
@@ -6766,7 +6766,7 @@ int get_dbnum_by_handle(bdb_state_type *bdb_state)
     return -1;
 }
 
-static int bdb_close_only_int(bdb_state_type *bdb_state, int *bdberr)
+static int bdb_close_only_int(bdb_state_type *bdb_state, DB_TXN *tid, int *bdberr)
 {
     int i;
     bdb_state_type *parent;
@@ -6782,7 +6782,7 @@ static int bdb_close_only_int(bdb_state_type *bdb_state, int *bdberr)
         return 0;
 
     /* close doesn't fail */
-    closedbs(bdb_state);
+    closedbs(bdb_state, tid);
 
     /* now remove myself from my parents list of children */
 
@@ -6819,20 +6819,26 @@ int bdb_flush_cache(bdb_state_type *bdb_state)
     return 0;
 }
 
-int bdb_close_only(bdb_state_type *bdb_state, int *bdberr)
+int bdb_close_only_tran(bdb_state_type *bdb_state, tran_type *tran, int *bdberr)
 {
     int rc;
+    DB_TXN *tid = tran ? tran->tid : NULL;
 
     if (bdb_state->envonly)
         return 0;
 
     BDB_READLOCK("bdb_close_only");
 
-    rc = bdb_close_only_int(bdb_state, bdberr);
+    rc = bdb_close_only_int(bdb_state, tid, bdberr);
 
     BDB_RELLOCK();
 
     return rc;
+}
+
+int bdb_close_only(bdb_state_type *bdb_state, int *bdberr)
+{
+    return bdb_close_only_tran(bdb_state, NULL, bdberr);
 }
 
 /* bdb_state is freed after this call */

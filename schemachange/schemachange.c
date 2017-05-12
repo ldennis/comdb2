@@ -188,6 +188,7 @@ int finalize_schema_change(struct ireq *iq, tran_type *trans)
 {
     struct schema_change_type *s = iq->sc;
     int rc;
+    assert(iq->sc->tran == NULL || iq->sc->tran == trans);
     if (s->nothrevent) {
         logmsg(LOGMSG_DEBUG, "Executing SYNCHRONOUSLY\n");
         rc = finalize_schema_change_thd(iq, trans);
@@ -650,7 +651,7 @@ static int add_table_for_recovery(struct ireq *iq)
 
     bdb_get_new_prefix(new_prefix, sizeof(new_prefix), &bdberr);
 
-    rc = open_temp_db_resume(newdb, new_prefix, 1, 0);
+    rc = open_temp_db_resume(newdb, new_prefix, 1, 0, NULL);
     if (rc) {
         backout_schemas(newdb->dbname);
         abort();

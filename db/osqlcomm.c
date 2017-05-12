@@ -7044,6 +7044,7 @@ int osql_process_packet(struct ireq *iq, unsigned long long rqid, uuid_t uuid,
             if (sc->db == NULL) {
                 sc->db = getdbbyname(sc->table);
             }
+            sc->tran = trans;
             if (sc->db) iq->usedb = sc->db;
             rc = start_schema_change_tran(iq, trans);
             if (rc != SC_COMMIT_PENDING) {

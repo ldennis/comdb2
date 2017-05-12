@@ -3510,6 +3510,7 @@ void sql_dump_hints(void);
 extern int gbl_disable_exit_on_thread_error;
 
 void sc_del_unused_files(struct db *db);
+void sc_del_unused_files_tran(struct db *db, tran_type *tran);
 
 extern int gbl_support_sock_lu;
 
@@ -3605,7 +3606,8 @@ int compare_tag_int(struct schema *old, struct schema *new, FILE *out,
 int cmp_index_int(struct schema *oldix, struct schema *newix, char *descr,
                   size_t descrlen);
 int getdbidxbyname(const char *p_name);
-int open_temp_db_resume(struct db *db, char *prefix, int resume, int temp);
+int open_temp_db_resume(struct db *db, char *prefix, int resume, int temp,
+                        tran_type *tran);
 int find_constraint(struct db *db, constraint_t *ct);
 
 /* END OF SCHEMACHANGE DECLARATIONS*/

@@ -203,7 +203,7 @@ int init_sc_genids(struct db *db, struct schema_change_type *s)
     if (!s->resume) {
         /* if we may have to resume this schema change, clear the progress in
          * llmeta */
-        if (bdb_clear_high_genid(NULL /*input_trans*/, db->dbname,
+        if (bdb_clear_high_genid(NULL, db->dbname,
                                  db->dtastripe, &bdberr) ||
             bdberr != BDBERR_NOERROR) {
             logmsg(LOGMSG_ERROR, "init_sc_genids: failed to clear high "
@@ -229,7 +229,7 @@ int init_sc_genids(struct db *db, struct schema_change_type *s)
          * if we have been rebuilding the data files we can grab the genids
          * straight from there, otherwise we look in the llmeta table */
         if (is_dta_being_rebuilt(db->plan))
-            rc = bdb_find_newest_genid(db->handle, NULL /*tran*/, stripe, rec,
+            rc = bdb_find_newest_genid(db->handle, NULL, stripe, rec,
                                        &dtalen, dtalen, &sc_genids[stripe],
                                        &ver, &bdberr);
         else
