@@ -1780,7 +1780,7 @@ void sc_printf(struct schema_change_type *s, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    if (s->partialuprecs) {
+    if (s && s->partialuprecs) {
         va_end(args);
         return;
     }
@@ -1803,7 +1803,7 @@ void sc_errf(struct schema_change_type *s, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    if (s->partialuprecs) {
+    if (s && s->partialuprecs) {
         va_end(args);
         return;
     }

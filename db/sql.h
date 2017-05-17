@@ -182,6 +182,8 @@ typedef struct osqlstate {
                             (i.e. already translated */
     int long_request;
     int dirty; /* optimization to nop selectv only transactions */
+
+    struct timespec tstart; /* transaction start timespec */
 } osqlstate_t;
 
 enum ctrl_sqleng {
@@ -506,6 +508,17 @@ struct sqlclntstate {
     int statement_query_effects;
 
     int verify_remote_schemas;
+
+    /* temporal table */
+    struct timespec tstart;
+    struct {
+        char *pFrom;
+        char *pTo;
+        int iIncl;
+        int iAll;
+        int iBus;
+    } pTemporal[2];
+    void *pTemporalParser;
 };
 
 /* Query stats. */

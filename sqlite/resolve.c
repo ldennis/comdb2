@@ -307,7 +307,7 @@ static int lookupName(
     */
     if( zDb==0 && zTab!=0 && cntTab==0 && pParse->pTriggerTab!=0 ){
       int op = pParse->eTriggerOp;
-      assert( op==TK_DELETE || op==TK_UPDATE || op==TK_INSERT );
+      assert( op==TK_DELETE || op==TK_UPDATE || op==TK_INSERT || op==TK_BUSINESS_TIME );
       if( op!=TK_DELETE && sqlite3StrICmp("new",zTab) == 0 ){
         pExpr->iTable = 1;
         pTab = pParse->pTriggerTab;
@@ -1226,6 +1226,16 @@ static int resolveSelectStep(Walker *pWalker, Select *p){
     if( sqlite3ResolveExprNames(&sNC, p->pLimit) ||
         sqlite3ResolveExprNames(&sNC, p->pOffset) ){
       return WRC_Abort;
+    }
+    if( p->pTemporal ){
+      if( sqlite3ResolveExprNames(&sNC, p->pTemporal->a[0].pFrom) ||
+          sqlite3ResolveExprNames(&sNC, p->pTemporal->a[0].pTo) ){
+        return WRC_Abort;
+      }
+      if( sqlite3ResolveExprNames(&sNC, p->pTemporal->a[1].pFrom) ||
+          sqlite3ResolveExprNames(&sNC, p->pTemporal->a[1].pTo) ){
+        return WRC_Abort;
+      }
     }
 
     /* If the SF_Converted flags is set, then this Select object was
