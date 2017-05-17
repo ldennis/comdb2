@@ -245,13 +245,13 @@ columnname(A) ::= nm(A) typetoken(Y). {comdb2AddColumn(pParse,&A,&Y);}
 //
 // COMDB2 KEYWORDS  
 //
-  ADD AGGREGATE ALIAS AUTHENTICATION BLOBFIELD BULKIMPORT CHECK
-  COMMITSLEEP CONSUMER CONVERTSLEEP COVERAGE CRLE DATA DATABLOB DATACOPY DBPAD
-  DEFERRABLE DISABLE DRYRUN ENABLE FOR FUNCTION GENID48 GET GRANT
-  IPU ISC KW LUA LZ4 NONE ODH OFF OP OPTIONS PAGEORDER PARTITION PASSWORD PERIOD
-  PROCEDURE PUT REBUILD READ READONLY REC RESERVED RETENTION REVOKE RLE
-  ROWLOCKS SCALAR SCHEMACHANGE SKIPSCAN START SUMMARIZE THREADS THRESHOLD TIME
-  TRUNCATE TUNABLE VERSION WRITE DDL USERSCHEMA ZLIB .
+  ADD AGGREGATE ALIAS AUTHENTICATION BLOBFIELD BULKIMPORT BUSINESS_TIME CHECK
+  COMMITSLEEP CONSUMER CONVERTSLEEP COVERAGE CRLE DATA DATABLOB
+  DATACOPY DBPAD DEFERRABLE DISABLE DRYRUN ENABLE FUNCTION GENID48 GET
+  GRANT IPU ISC KW LUA LZ4 NONE ODH OFF OP OPTIONS PAGEORDER PARTITION PASSWORD PERIOD
+  PORTION PROCEDURE PUT REBUILD READ READONLY REC RESERVED RETENTION REVOKE RLE
+  ROWLOCKS SCALAR SCHEMACHANGE SKIPSCAN START SUMMARIZE SYSTEM_TIME THREADS
+  THRESHOLD TIME TRUNCATE TUNABLE VERSION WRITE DDL USERSCHEMA ZLIB .
 %wildcard ANY.
 
 
@@ -533,8 +533,9 @@ multiselect_op(A) ::= UNION(OP).             {A = @OP; /*A-overwrites-OP*/}
 multiselect_op(A) ::= UNION ALL.             {A = TK_ALL;}
 multiselect_op(A) ::= EXCEPT|INTERSECT(OP).  {A = @OP; /*A-overwrites-OP*/}
 %endif SQLITE_OMIT_COMPOUND_SELECT
-oneselect(A) ::= SELECT(S) distinct(D) selcollist(W) from(X) where_opt(Y)
-                 groupby_opt(P) having_opt(Q) orderby_opt(Z) limit_opt(L). {
+oneselect(A) ::= SELECT(S) distinct(D) selcollist(W) from(X) temporal(T)
+                 where_opt(Y) groupby_opt(P) having_opt(Q) orderby_opt(Z)
+                 limit_opt(L). {
 #if SELECTTRACE_ENABLED
   Token s = S; /*A-overwrites-S*/
 #endif
@@ -563,6 +564,7 @@ oneselect(A) ::= SELECT(S) distinct(D) selcollist(W) from(X) where_opt(Y)
     }
   }
 #endif /* SELECTRACE_ENABLED */
+  A->pTemporal = T;
 }
 oneselect(A) ::= values(A).
 
@@ -806,23 +808,74 @@ limit_opt(A) ::= LIMIT expr(X) OFFSET expr(Y).
 limit_opt(A) ::= LIMIT expr(X) COMMA expr(Y). 
                                       {A.pOffset = X.pExpr; A.pLimit = Y.pExpr;}
 
+%type temporal_op {int}
+temporal_op(A) ::= SYSTEM_TIME. {A = 0;}
+temporal_op(A) ::= BUSINESS_TIME. {A = 1;}
+
+%type temporal_opt {Temporal*}
+%type temporal {Temporal*}
+
+%destructor temporal_opt {sqlite3TemporalDelete(pParse->db, $$);}
+%destructor temporal {sqlite3TemporalDelete(pParse->db, $$);}
+
+temporal_opt(A) ::= temporal_op(T) AS OF expr(X). {
+  A = sqlite3TemporalAdd(pParse, 0, X.pExpr, 0, 0, 0, T);
+}
+temporal_opt(A) ::= temporal_op(T) FROM expr(X) TO expr(Y). {
+  A = sqlite3TemporalAdd(pParse, 0, X.pExpr, Y.pExpr, 0, 0, T);
+}
+temporal_opt(A) ::= temporal_op(T) BETWEEN expr(X) AND expr(Y). {
+  A = sqlite3TemporalAdd(pParse, 0, X.pExpr, Y.pExpr, 1, 0, T);
+}
+temporal_opt(A) ::= temporal_op(T) ALL. {
+  A = sqlite3TemporalAdd(pParse, 0, 0, 0, 0, 1, T);
+}
+temporal_opt(A) ::= temporal_opt(A) COMMA temporal_op(T) AS OF expr(X). {
+  A = sqlite3TemporalAdd(pParse, A, X.pExpr, 0, 0, 0, T);
+}
+temporal_opt(A) ::= temporal_opt(A) COMMA temporal_op(T) FROM expr(X) TO expr(Y). {
+  A = sqlite3TemporalAdd(pParse, A, X.pExpr, Y.pExpr, 0, 0, T);
+}
+temporal_opt(A) ::= temporal_opt(A) COMMA temporal_op(T) BETWEEN expr(X) AND expr(Y). {
+  A = sqlite3TemporalAdd(pParse, A, X.pExpr, Y.pExpr, 1, 0, T);
+}
+temporal_opt(A) ::= temporal_opt(A) COMMA temporal_op(T) ALL. {
+  A = sqlite3TemporalAdd(pParse, A, 0, 0, 0, 1, T);
+}
+
+temporal(A) ::= . {A = 0;}
+temporal(A) ::= FOR temporal_opt(T). { A = T; }
+
+%type bustime_upd {Temporal*}
+%destructor bustime_upd {sqlite3TemporalDelete(pParse->db, $$);}
+
+bustime_upd(A) ::= . {A = 0;}
+bustime_upd(A) ::= FOR PORTION OF BUSINESS_TIME FROM expr(X) TO expr(Y). {
+  A = sqlite3TemporalAdd(pParse, 0, X.pExpr, Y.pExpr, 0, 0, 1);
+}
+
 /////////////////////////// The DELETE statement /////////////////////////////
 //
 %ifdef SQLITE_ENABLE_UPDATE_DELETE_LIMIT
-cmd ::= with(C) DELETE FROM fullname(X) indexed_opt(I) where_opt(W) 
-        orderby_opt(O) limit_opt(L). {
+/* COMDB2 MODIFICATION
+ & add bustime_upd */
+cmd ::= with(C) DELETE FROM fullname(X) bustime_upd(T) indexed_opt(I)
+        where_opt(W) orderby_opt(O) limit_opt(L). {
   sqlite3WithPush(pParse, C, 1);
   sqlite3SrcListIndexedBy(pParse, X, &I);
+  W.pExpr = sqlite3BusTimeWhere(pParse, X, 0, W.pExpr, T, "DELETE");
   sqlite3FingerprintDelete(pParse->db, X, W.pExpr);
-  sqlite3DeleteFrom(pParse,X,W.pExpr,O,L.pLimit,L.pOffset);
+  sqlite3DeleteFrom(pParse,X,W.pExpr,O,L.pLimit,L.pOffset,T);
 }
 %endif
 %ifndef SQLITE_ENABLE_UPDATE_DELETE_LIMIT
-cmd ::= with(C) DELETE FROM fullname(X) indexed_opt(I) where_opt(W). {
+cmd ::= with(C) DELETE FROM fullname(X) bustime_upd(T) indexed_opt(I)
+        where_opt(W). {
   sqlite3WithPush(pParse, C, 1);
   sqlite3SrcListIndexedBy(pParse, X, &I);
   sqlite3FingerprintDelete(pParse->db, X, W.pExpr);
-  sqlite3DeleteFrom(pParse,X,W.pExpr,0,0,0);
+  W.pExpr = sqlite3BusTimeWhere(pParse, X, 0, W.pExpr, T, "DELETE");
+  sqlite3DeleteFrom(pParse,X,W.pExpr,0,0,0,T);
 }
 %endif
 
@@ -835,23 +888,27 @@ where_opt(A) ::= WHERE expr(X).       {A = X;}
 ////////////////////////// The UPDATE command ////////////////////////////////
 //
 %ifdef SQLITE_ENABLE_UPDATE_DELETE_LIMIT
-cmd ::= with(C) UPDATE orconf(R) fullname(X) indexed_opt(I) SET setlist(Y)
-        where_opt(W) orderby_opt(O) limit_opt(L).  {
+/* COMDB2 MODIFICATION
+ & add bustime_upd */
+cmd ::= with(C) UPDATE orconf(R) fullname(X) bustime_upd(T) indexed_opt(I)
+        SET setlist(Y) where_opt(W) orderby_opt(O) limit_opt(L).  {
   sqlite3WithPush(pParse, C, 1);
   sqlite3SrcListIndexedBy(pParse, X, &I);
   sqlite3ExprListCheckLength(pParse,Y,"set list"); 
+  W.pExpr = sqlite3BusTimeWhere(pParse, X, Y, W.pExpr, T, "UPDATE");
   sqlite3FingerprintUpdate(pParse->db, X, Y, W.pExpr, R);
-  sqlite3Update(pParse,X,Y,W.pExpr,R,O,L.pLimit,L.pOffset);
+  sqlite3Update(pParse,X,Y,W.pExpr,R,O,L.pLimit,L.pOffset,T);
 }
 %endif
 %ifndef SQLITE_ENABLE_UPDATE_DELETE_LIMIT
-cmd ::= with(C) UPDATE orconf(R) fullname(X) indexed_opt(I) SET setlist(Y)
-        where_opt(W).  {
+cmd ::= with(C) UPDATE orconf(R) fullname(X) bustime_upd(T) indexed_opt(I)
+        SET setlist(Y) where_opt(W).  {
   sqlite3WithPush(pParse, C, 1);
   sqlite3SrcListIndexedBy(pParse, X, &I);
   sqlite3ExprListCheckLength(pParse,Y,"set list"); 
   sqlite3FingerprintUpdate(pParse->db, X, Y, W.pExpr, R);
-  sqlite3Update(pParse,X,Y,W.pExpr,R,0,0,0);
+  W.pExpr = sqlite3BusTimeWhere(pParse, X, Y, W.pExpr, T, "UPDATE");
+  sqlite3Update(pParse,X,Y,W.pExpr,R,0,0,0,T);
 }
 %endif
 
@@ -1493,6 +1550,7 @@ trigger_time(A) ::= .            { A = TK_BEFORE; }
 trigger_event(A) ::= DELETE|INSERT(X).   {A.a = @X; /*A-overwrites-X*/ A.b = 0;}
 trigger_event(A) ::= UPDATE(X).          {A.a = @X; /*A-overwrites-X*/ A.b = 0;}
 trigger_event(A) ::= UPDATE OF idlist(X).{A.a = TK_UPDATE; A.b = X;}
+trigger_event(A) ::= BUSINESS_TIME.      {A.a = TK_BUSINESS_TIME; A.b = 0;}
 
 foreach_clause ::= .
 foreach_clause ::= FOR EACH ROW.

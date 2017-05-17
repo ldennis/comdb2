@@ -5025,6 +5025,7 @@ void run_stmt_setup(struct sqlclntstate *clnt, sqlite3_stmt *stmt)
     comdb2_set_sqlite_vdbe_tzname_int(v, clnt);
     comdb2_set_sqlite_vdbe_dtprec_int(v, clnt);
     clnt->iswrite = 0; /* reset before step() */
+    clnt->pTemporalParser = NULL; /* reset before step() */
 
 #ifdef DEBUG
     if (gbl_debug_sql_opcodes) {
@@ -5631,6 +5632,7 @@ check_version:
             }
         }
 
+        int new_sqldb = 0;
         if (!thd->sqldb) {
             /* cache analyze gen first because gbl_analyze_gen is NOT protected
              * by schema_lk */
@@ -5642,6 +5644,7 @@ check_version:
                 thd->sqldb = NULL;
             }
             thd->dbopen_gen = gbl_dbopen_gen;
+            new_sqldb = 1;
         }
 
         get_copy_rootpages_nolock(thd->sqlthd);
@@ -5665,6 +5668,10 @@ check_version:
                     clnt->sql_query->has_cnonce = saved_has_cnonce;
                 }
             }
+
+            void temporal_sqlite_update(sqlite3 * sqldb);
+            if (new_sqldb)
+                temporal_sqlite_update(thd->sqldb);
 
             /* save the views generation number */
             thd->views_gen = gbl_views_gen;
@@ -6266,6 +6273,15 @@ void cleanup_clnt(struct sqlclntstate *clnt)
     }
     clnt->ddl_tables = NULL;
     clnt->dml_tables = NULL;
+
+    if (clnt->pTemporal[0].pFrom)
+        free(clnt->pTemporal[0].pFrom);
+    if (clnt->pTemporal[0].pTo)
+        free(clnt->pTemporal[0].pTo);
+    if (clnt->pTemporal[1].pFrom)
+        free(clnt->pTemporal[1].pFrom);
+    if (clnt->pTemporal[1].pTo)
+        free(clnt->pTemporal[1].pTo);
 }
 
 void reset_clnt(struct sqlclntstate *clnt, SBUF2 *sb, int initial)
@@ -6403,6 +6419,27 @@ void reset_clnt(struct sqlclntstate *clnt, SBUF2 *sb, int initial)
     clnt->ncontext = 0;
     clnt->statement_query_effects = 0;
     clnt->wrong_db = 0;
+
+    if (clnt->pTemporal[0].pFrom)
+        free(clnt->pTemporal[0].pFrom);
+    clnt->pTemporal[0].pFrom = NULL;
+    if (clnt->pTemporal[0].pTo)
+        free(clnt->pTemporal[0].pTo);
+    clnt->pTemporal[0].pTo = NULL;
+    clnt->pTemporal[0].iIncl = 0;
+    clnt->pTemporal[0].iAll = 0;
+    clnt->pTemporal[0].iBus = 0;
+    if (clnt->pTemporal[1].pFrom)
+        free(clnt->pTemporal[1].pFrom);
+    clnt->pTemporal[1].pFrom = NULL;
+    if (clnt->pTemporal[1].pTo)
+        free(clnt->pTemporal[1].pTo);
+    clnt->pTemporal[1].pTo = NULL;
+    clnt->pTemporal[1].iIncl = 0;
+    clnt->pTemporal[1].iAll = 0;
+    clnt->pTemporal[1].iBus = 0;
+
+    clnt->pTemporalParser = NULL;
 }
 
 void reset_clnt_flags(struct sqlclntstate *clnt)

@@ -280,6 +280,34 @@ int do_upgrade_table(struct schema_change_type *s)
     return rc;
 }
 
+static int do_finalize_history(struct ireq *iq, tran_type *tran)
+{
+    struct schema_change_type *s = iq->sc;
+    int rc = 0;
+    int bdberr = 0;
+    if (!s->history_s)
+        return 0;
+    iq->sc = s->history_s;
+    if (s->add_history && iq->sc->addonly) {
+        rc = finalize_add_table(iq, tran);
+        s->history_s->db->is_history_table = 1;
+        s->db->history_db = s->history_s->db;
+        s->history_s->db->orig_db = s->db;
+    } else if (s->drop_history && iq->sc->drop_table) {
+        rc = finalize_drop_table(iq, tran);
+    } else if (s->alter_history && iq->sc->alteronly) {
+        rc = finalize_alter_table(iq, tran);
+        s->history_s->db->is_history_table = 1;
+        s->db->history_db = s->history_s->db;
+        s->history_s->db->orig_db = s->db;
+    } else {
+        abort();
+    }
+    iq->sc = s;
+
+    return rc;
+}
+
 typedef int (*ddl_t)(struct ireq *, tran_type *);
 
 /*
@@ -304,7 +332,14 @@ static int do_finalize(ddl_t func, struct ireq *iq, tran_type *input_tran,
     }
 
     rc = func(iq, tran);
+    if (rc) {
+        if (input_tran == NULL) {
+            trans_abort(iq, tran);
+        }
+        return rc;
+    }
 
+    rc = do_finalize_history(iq, tran);
     if (rc) {
         if (input_tran == NULL) {
             trans_abort(iq, tran);
@@ -1166,6 +1201,11 @@ int backout_schema_change(struct ireq *iq)
     } else {
         reload_db_tran(s->db, NULL);
         sc_del_unused_files(s->db);
+    }
+    if (s->history_s) {
+        iq->sc = s->history_s;
+        backout_schema_change(iq);
+        iq->sc = s;
     }
     broadcast_sc_end(sc_seed);
     return 0;

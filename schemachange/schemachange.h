@@ -177,6 +177,15 @@ struct schema_change_type {
                            whole schema change (I will change this in the
                            future)*/
 
+    /* temporal table */
+    int is_history;
+    struct schema_change_type *history_s;
+    int history_rc;
+    int add_history;
+    int drop_history;
+    int alter_history;
+    struct dbtable *orig_db;
+
     /*********************** temporary fields for table upgrade
      * ************************/
     unsigned long long start_genid;
@@ -278,6 +287,9 @@ struct schema_change_type *
 init_schemachange_type(struct schema_change_type *sc);
 
 struct schema_change_type *new_schemachange_type();
+
+void deep_copy_schemachange_type(struct schema_change_type *des,
+                                 struct schema_change_type *src);
 
 void cleanup_strptr(char **schemabuf);
 

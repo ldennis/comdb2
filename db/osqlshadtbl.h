@@ -63,7 +63,6 @@ struct shad_tbl {
     int nix;
     int ix_expr;
     int ix_partial;
-    struct dbtable *db; /* TODO: db has dbenv, chop it */
     int dbnum;
     int nblobs;
     int updcols; /* 1 if we have update columns */

@@ -1060,6 +1060,7 @@ typedef struct Cdb2TrigEvent Cdb2TrigEvent;
 typedef struct Cdb2TrigEvents Cdb2TrigEvents;
 typedef struct Cdb2TrigTables Cdb2TrigTables;
 typedef struct comdb2_ddl_context Cdb2DDL;
+typedef struct Temporal Temporal;
 
 /*
 ** Defer sourcing vdbe.h and btree.h until after the "u8" and
@@ -1686,6 +1687,7 @@ struct Column {
   char affinity;   /* One of the SQLITE_AFF_... values */
   u8 szEst;        /* Estimated size of value in this column. sizeof(INT)==1 */
   u8 colFlags;     /* Boolean properties.  See COLFLAG_ defines below */
+  u8 colTime;      /* Boolean properties.  See COLTIME_ defines below */
 };
 
 /* Allowed values for Column.colFlags:
@@ -1693,6 +1695,13 @@ struct Column {
 #define COLFLAG_PRIMKEY  0x0001    /* Column is part of the primary key */
 #define COLFLAG_HIDDEN   0x0002    /* A hidden column in a virtual table */
 #define COLFLAG_HASTYPE  0x0004    /* Type name follows column name */
+
+/* Allowed values for Column.colTime:
+*/
+#define COLTIME_SYSSTART 0x0001    /* System start */
+#define COLTIME_SYSEND   0x0002    /* System end */
+#define COLTIME_BUSSTART 0x0004    /* Business start */
+#define COLTIME_BUSEND   0x0008    /* Business end */
 
 /*
 ** A "Collating Sequence" is defined by an instance of the following
@@ -1893,6 +1902,8 @@ struct Table {
   /* COMDB2 MODIFICATION */
   int hasPartIdx;
   int hasExprIdx;
+  int isHistory;
+  Trigger *pBusTimeTrigger;   /* Business Time trigger */
 };
 
 /*
@@ -2740,6 +2751,7 @@ struct Select {
   With *pWith;           /* WITH clause attached to this select. Or NULL. */
   /* COMDB2 MODIFICATION */
   u8 recording;          /* set this to 1 from SELECTV */
+  Temporal *pTemporal;   /* FOR SYSTEM_TIME/BUSINESS_TIME clauses. Or NULL */
 };
 
 /*
@@ -3767,7 +3779,7 @@ void sqlite3SrcListFuncArgs(Parse*, SrcList*, ExprList*);
 int sqlite3IndexedByLookup(Parse *, struct SrcList_item *);
 void sqlite3SrcListShiftJoinType(SrcList*);
 /* COMDB2 MODIFICATION */
-void sqlite3SrcListAssignCursors(Parse*, SrcList*, int);
+int sqlite3SrcListAssignCursors(Parse*, SrcList*, int, Select*);
 void sqlite3IdListDelete(sqlite3*, IdList*);
 void sqlite3SrcListDelete(sqlite3*, SrcList*);
 Index *sqlite3AllocateIndexObject(sqlite3*,i16,int,char**);
@@ -3781,11 +3793,12 @@ void sqlite3SelectDelete(sqlite3*, Select*);
 Table *sqlite3SrcListLookup(Parse*, SrcList*);
 int sqlite3IsReadOnly(Parse*, Table*, int);
 void sqlite3OpenTable(Parse*, int iCur, int iDb, Table*, int);
+Expr *sqlite3BusTimeWhere(Parse*,SrcList*,ExprList*,Expr*,Temporal*,char*);
 #if defined(SQLITE_ENABLE_UPDATE_DELETE_LIMIT) && !defined(SQLITE_OMIT_SUBQUERY)
 Expr *sqlite3LimitWhere(Parse*,SrcList*,Expr*,ExprList*,Expr*,Expr*,char*);
 #endif
-void sqlite3DeleteFrom(Parse*, SrcList*, Expr*, ExprList*, Expr*, Expr*);
-void sqlite3Update(Parse*, SrcList*, ExprList*,Expr*,int,ExprList*,Expr*,Expr*);
+void sqlite3DeleteFrom(Parse*, SrcList*, Expr*, ExprList*, Expr*, Expr*, Temporal*);
+void sqlite3Update(Parse*, SrcList*, ExprList*,Expr*,int,ExprList*,Expr*,Expr*, Temporal*);
 WhereInfo *sqlite3WhereBegin(Parse*,SrcList*,Expr*,ExprList*,ExprList*,u16,int);
 void sqlite3WhereEnd(WhereInfo*);
 LogEst sqlite3WhereOutputRowCount(WhereInfo*);
@@ -3874,7 +3887,7 @@ int sqlite3ExprCanBeNull(const Expr*);
 int sqlite3ExprNeedsNoAffinityChange(const Expr*, char);
 int sqlite3IsRowid(const char*);
 void sqlite3GenerateRowDelete(
-    Parse*,Table*,Trigger*,int,int,int,i16,u8,u8,u8,int);
+    Parse*,Table*,Trigger*,int,int,int,i16,u8,u8,u8,int,Expr*,Expr*);
 void sqlite3GenerateRowIndexDelete(Parse*, Table*, int, int, int*, int);
 int sqlite3GenerateIndexKey(Parse*, Index*, int, int, int, int*,Index*,int);
 void sqlite3ResolvePartIdxLabel(Parse*,int);
@@ -3922,6 +3935,9 @@ void sqlite3MaterializeView(Parse*, Table*, Expr*, ExprList*,Expr*,Expr*,int);
   void sqlite3CodeRowTrigger(Parse*, Trigger *, int, ExprList*, int, Table *,
                             int, int, int);
   void sqlite3CodeRowTriggerDirect(Parse *, Trigger *, Table *, int, int, int);
+  /* COMDB2 MODIFICATION */
+  void sqlite3CodeBusTimeRowTrigger(Parse *, ExprList *, Table *, Expr *,
+                                    Expr *, int, int, int);
   void sqliteViewTriggers(Parse*, Table*, Expr*, int, ExprList*);
   void sqlite3DeleteTriggerStep(sqlite3*, TriggerStep*);
   TriggerStep *sqlite3TriggerSelectStep(sqlite3*,Select*);
@@ -4505,5 +4521,23 @@ void sqlite3FingerprintDelete(sqlite3 *db, SrcList *pTabList, Expr *pWhere);
 void sqlite3FingerprintInsert(sqlite3 *db, SrcList *, Select *, IdList *, With *);
 void sqlite3FingerprintUpdate(sqlite3 *db, SrcList *pTabList, ExprList *pChanges, Expr *pWhere, int onError);
 void comdb2WriteTransaction(Parse*);
+
+/*
+** An instance of this structure holds information about the
+** FOR TIME clause of a SELECT statement.
+*/
+struct Temporal {
+  struct {
+    Expr *pFrom;  /* The FROM expression.  NULL if ALL requested */
+    Expr *pTo;    /* The TO expression.  NULL if there is none */
+    int iIncl;
+    int iAll;
+    int iBus;
+  } a[2];
+};
+
+Temporal *sqlite3TemporalAdd(Parse*,Temporal*,Expr*,Expr*,int,int,int);
+Temporal *sqlite3TemporalDup(sqlite3*,Temporal*);
+void sqlite3TemporalDelete(sqlite3*,Temporal*);
 
 #endif /* _SQLITEINT_H_ */

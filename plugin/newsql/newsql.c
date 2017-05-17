@@ -348,6 +348,162 @@ static int process_set_commands(struct dbenv *dbenv, struct sqlclntstate *clnt)
                 } else {
                     clnt->ignore_coherency = 0;
                 }
+            } else if (strncasecmp(sqlstr, "temporal", 8) == 0) {
+                int valid = 0;
+                int type = -1;
+                int disable = 0;
+                sqlstr += 8;
+                sqlstr = skipws(sqlstr);
+                if (strncasecmp(sqlstr, "system_time", 11) == 0) {
+                    sqlstr += 11;
+                    type = 0;
+                    clnt->pTemporal[type].iBus = type;
+                    valid = 1;
+                } else if (strncasecmp(sqlstr, "business_time", 13) == 0) {
+                    sqlstr += 13;
+                    type = 1;
+                    clnt->pTemporal[type].iBus = type;
+                    valid = 1;
+                }
+                if (valid) {
+                    valid = 0;
+                    if (clnt->pTemporal[type].pFrom)
+                        free(clnt->pTemporal[type].pFrom);
+                    clnt->pTemporal[type].pFrom = NULL;
+                    if (clnt->pTemporal[type].pTo)
+                        free(clnt->pTemporal[type].pTo);
+                    clnt->pTemporal[type].pTo = NULL;
+                    clnt->pTemporal[type].iIncl = 0;
+                    clnt->pTemporal[type].iAll = 0;
+                    int has_to = 0;
+                    sqlstr = skipws(sqlstr);
+                    if (strncasecmp(sqlstr, "as", 2) == 0) {
+                        sqlstr += 2;
+                        sqlstr = skipws(sqlstr);
+                        if (strncasecmp(sqlstr, "of", 2) == 0) {
+                            sqlstr += 2;
+                            valid = 1;
+                        }
+                    } else if (strncasecmp(sqlstr, "from", 4) == 0) {
+                        sqlstr += 4;
+                        valid = 1;
+                        clnt->pTemporal[type].iIncl = 0;
+                        has_to = 1;
+                    } else if (strncasecmp(sqlstr, "between", 7) == 0) {
+                        sqlstr += 7;
+                        valid = 1;
+                        clnt->pTemporal[type].iIncl = 1;
+                        has_to = 1;
+                    } else if (strncasecmp(sqlstr, "all", 3) == 0) {
+                        clnt->pTemporal[type].iAll = 1;
+                        valid = 1;
+                    } else if (strncasecmp(sqlstr, "disable", 7) == 0) {
+                        disable = 1;
+                        valid = 1;
+                    }
+                    if (!disable && valid && !clnt->pTemporal[type].iAll) {
+                        valid = 0;
+                        sqlstr = skipws(sqlstr);
+                        if (strncasecmp(sqlstr, "'", 1) == 0) {
+                            sqlstr += 1;
+                            clnt->pTemporal[type].pFrom = sqlstr;
+                            while (*sqlstr != '\'' && *sqlstr != '\0') {
+                                ++sqlstr;
+                            }
+                            if (*sqlstr != '\0') {
+                                valid = 1;
+                                *sqlstr = '\0';
+                                clnt->pTemporal[type].pFrom =
+                                    strdup(clnt->pTemporal[type].pFrom);
+                                *sqlstr = '\'';
+                                ++sqlstr;
+                            } else {
+                                clnt->pTemporal[type].pFrom = NULL;
+                            }
+                        } else if (strncasecmp(sqlstr, "\"", 1) == 0) {
+                            sqlstr += 1;
+                            clnt->pTemporal[type].pFrom = sqlstr;
+                            while (*sqlstr != '"' && *sqlstr != '\0') {
+                                ++sqlstr;
+                            }
+                            if (*sqlstr != '\0') {
+                                valid = 1;
+                                *sqlstr = '\0';
+                                clnt->pTemporal[type].pFrom =
+                                    strdup(clnt->pTemporal[type].pFrom);
+                                *sqlstr = '"';
+                                ++sqlstr;
+                            } else {
+                                clnt->pTemporal[type].pFrom = NULL;
+                            }
+                        }
+                        if (valid && has_to) {
+                            valid = 0;
+                            sqlstr = skipws(sqlstr);
+                            if (clnt->pTemporal[type].iIncl &&
+                                strncasecmp(sqlstr, "and", 3) == 0) {
+                                sqlstr += 3;
+                                valid = 1;
+                            }
+                            if (clnt->pTemporal[type].iIncl == 0 &&
+                                strncasecmp(sqlstr, "to", 2) == 0) {
+                                sqlstr += 2;
+                                valid = 1;
+                            }
+                            if (valid) {
+                                valid = 0;
+                                sqlstr = skipws(sqlstr);
+                                if (strncasecmp(sqlstr, "'", 1) == 0) {
+                                    sqlstr += 1;
+                                    clnt->pTemporal[type].pTo = sqlstr;
+                                    while (*sqlstr != '\'' && *sqlstr != '\0') {
+                                        ++sqlstr;
+                                    }
+                                    if (*sqlstr != '\0') {
+                                        valid = 1;
+                                        *sqlstr = '\0';
+                                        clnt->pTemporal[type].pTo =
+                                            strdup(clnt->pTemporal[type].pTo);
+                                        *sqlstr = '\'';
+                                        ++sqlstr;
+                                    } else {
+                                        clnt->pTemporal[type].pTo = NULL;
+                                    }
+                                } else if (strncasecmp(sqlstr, "\"", 1) == 0) {
+                                    sqlstr += 1;
+                                    clnt->pTemporal[type].pTo = sqlstr;
+                                    while (*sqlstr != '"' && *sqlstr != '\0') {
+                                        ++sqlstr;
+                                    }
+                                    if (*sqlstr != '\0') {
+                                        valid = 1;
+                                        *sqlstr = '\0';
+                                        clnt->pTemporal[type].pTo =
+                                            strdup(clnt->pTemporal[type].pTo);
+                                        *sqlstr = '"';
+                                        ++sqlstr;
+                                    } else {
+                                        clnt->pTemporal[type].pTo = NULL;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!valid) {
+                    if (type == 0 || type == 1) {
+                        if (clnt->pTemporal[type].pFrom)
+                            free(clnt->pTemporal[type].pFrom);
+                        clnt->pTemporal[type].pFrom = NULL;
+                        if (clnt->pTemporal[type].pTo)
+                            free(clnt->pTemporal[type].pTo);
+                        clnt->pTemporal[type].pTo = NULL;
+                        clnt->pTemporal[type].iIncl = 0;
+                        clnt->pTemporal[type].iAll = 0;
+                        clnt->pTemporal[type].iBus = type;
+                    }
+                    rc = ii + 1;
+                }
             } else {
                 rc = ii + 1;
             }
@@ -1021,11 +1177,7 @@ done:
     /* XXX free logical tran?  */
     close_appsock(sb);
 
-    clnt.dbtran.mode = TRANLEVEL_INVALID;
-    set_high_availability(&clnt, 0);
-    // clnt.high_availability = 0;
-    if (clnt.query_stats)
-        free(clnt.query_stats);
+    cleanup_clnt(&clnt);
 
     pthread_mutex_destroy(&clnt.wait_mutex);
     pthread_cond_destroy(&clnt.wait_cond);

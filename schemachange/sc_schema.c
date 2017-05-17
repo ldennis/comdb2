@@ -26,6 +26,7 @@
 
 extern int gbl_partial_indexes;
 
+int key_has_member(struct schema *key, const char *name);
 int verify_record_constraint(struct ireq *iq, struct dbtable *db, void *trans,
                              void *old_dta, unsigned long long ins_keys,
                              blob_buffer_t *blobs, int maxblobs,
@@ -100,6 +101,105 @@ int verify_record_constraint(struct ireq *iq, struct dbtable *db, void *trans,
             int fndrrn;
             unsigned long long genid;
             int nulls;
+
+            if (ct->flags & CT_NO_OVERLAP) {
+                char fndkey[MAXKEYLEN];
+                struct schema *lky = db->ixschema[lcl_idx];
+                int from_off, to_off, mlen;
+                unsigned long long fgenid;
+
+                ruleiq.usedb = db;
+                rixlen = db->ix_keylen[lcl_idx];
+                from_off = key_has_member(lky, ct->table[ri]);
+                mlen = lky->member[from_off].len;
+                from_off = lky->member[from_off].offset;
+                to_off = key_has_member(lky, ct->keynm[ri]);
+                to_off = lky->member[to_off].offset;
+                memcpy(rkey, lcl_key, MAXKEYLEN);
+
+                /* zero out TO time, find the next FROM */
+                memset(rkey + to_off, 0, mlen);
+                rc = ix_find_by_key_tran(&ruleiq, rkey, rixlen, lcl_idx, fndkey,
+                                         &fndrrn, &genid, NULL, NULL, 0, trans);
+                if (rc == RC_INTERNAL_RETRY) {
+                    if (new_dta)
+                        free(new_dta);
+                    return rc;
+                } else if (rc == IX_EMPTY) {
+                    continue;
+                }
+                fgenid = genid;
+
+                /* ignore FROM/TO time diff so that we can do memcmp */
+                memcpy(rkey + from_off, fndkey + from_off, mlen);
+                memcpy(rkey + to_off, fndkey + to_off, mlen);
+
+                if (memcmp(rkey, fndkey, rixlen) == 0) {
+                    if (memcmp(fndkey + from_off, lcl_key + from_off, mlen) <
+                            0 &&
+                        (stype_is_null(fndkey + to_off) ||
+                         memcmp(fndkey + to_off, lcl_key + from_off, mlen) >
+                             0)) {
+                        logmsg(LOGMSG_ERROR,
+                               "fk violation 1: %s @ %s overlaps (%s : %s)\n",
+                               ct->lclkeyname, db->tablename, ct->keynm[ri],
+                               ct->table[ri]);
+                        logmsg(LOGMSG_ERROR, "adding:\n");
+                        fsnapf(stderr, lcl_key, lcl_len > 32 ? 32 : lcl_len);
+                        logmsg(LOGMSG_ERROR, "found:\n");
+                        fsnapf(stderr, fndkey, rixlen > 32 ? 32 : rixlen);
+                        logmsg(LOGMSG_ERROR, "\n");
+                        goto bad;
+                    } else if (memcmp(fndkey + from_off, lcl_key + from_off,
+                                      mlen) >= 0 &&
+                               (stype_is_null(lcl_key + to_off) ||
+                                memcmp(fndkey + from_off, lcl_key + to_off,
+                                       mlen) < 0)) {
+                        logmsg(LOGMSG_ERROR,
+                               "fk violation 2: %s @ %s overlaps (%s : %s)\n",
+                               ct->lclkeyname, db->tablename, ct->keynm[ri],
+                               ct->table[ri]);
+                        logmsg(LOGMSG_ERROR, "adding:\n");
+                        fsnapf(stderr, lcl_key, lcl_len > 32 ? 32 : lcl_len);
+                        logmsg(LOGMSG_ERROR, "found:\n");
+                        fsnapf(stderr, fndkey, rixlen > 32 ? 32 : rixlen);
+                        logmsg(LOGMSG_ERROR, "\n");
+                        goto bad;
+                    }
+                }
+                rc = ix_prev_trans(&ruleiq, trans, lcl_idx, fndkey, rixlen,
+                                   fndkey, fndrrn, fgenid, fndkey, &fndrrn,
+                                   &genid, NULL, NULL, 0, 0);
+                if (rc == RC_INTERNAL_RETRY) {
+                    if (new_dta)
+                        free(new_dta);
+                    return rc;
+                } else if (fgenid == genid) {
+                    continue;
+                }
+
+                /* ignore FROM/TO time diff so that we can do memcmp */
+                memcpy(rkey + from_off, fndkey + from_off, mlen);
+                memcpy(rkey + to_off, fndkey + to_off, mlen);
+
+                if (memcmp(rkey, fndkey, rixlen) == 0) {
+                    if (stype_is_null(fndkey + to_off) ||
+                        memcmp(fndkey + to_off, lcl_key + from_off, mlen) > 0) {
+                        logmsg(LOGMSG_ERROR,
+                               "fk violation 3: %s @ %s overlaps (%s : %s)\n",
+                               ct->lclkeyname, db->tablename, ct->keynm[ri],
+                               ct->table[ri]);
+                        logmsg(LOGMSG_ERROR, "adding:\n");
+                        fsnapf(stderr, lcl_key, lcl_len > 32 ? 32 : lcl_len);
+                        logmsg(LOGMSG_ERROR, "found:\n");
+                        fsnapf(stderr, fndkey, rixlen > 32 ? 32 : rixlen);
+                        logmsg(LOGMSG_ERROR, "\n");
+                        goto bad;
+                    }
+                }
+
+                continue;
+            }
 
             ruledb = get_dbtable_by_name(ct->table[ri]);
             if (ruledb == NULL) goto bad;
@@ -281,7 +381,7 @@ static int verify_constraints_forward_changes(struct dbtable *db, struct dbtable
                 logmsg(LOGMSG_ERROR, "error in checking constraint key %s\n",
                        ct->lclkeyname);
                 return -2;
-            } else if (rc == 0) {
+            } else if (rc == 0 && ct->flags != CT_NO_OVERLAP) {
                 int j = 0;
                 /* we need this loop for any constraint rules that may
                    point back to our table.  If that's the case, we
@@ -380,6 +480,13 @@ int set_header_and_properties(void *tran, struct dbtable *newdb,
         sc_errf(s, "Failed to set bthash size in meta\n");
         return SC_TRANSACTION_FAILED;
     }
+
+    if ((newdb->periods[PERIOD_SYSTEM].enable || newdb->is_history_table) &&
+        !s->alteronly && put_db_start_time(newdb, tran)) {
+        sc_errf(s, "Failed to set start time in meta\n");
+        return SC_TRANSACTION_FAILED;
+    }
+
     return SC_OK;
 }
 
@@ -674,6 +781,23 @@ int create_schema_change_plan(struct schema_change_type *s, struct dbtable *oldd
 
     int force_dta_rebuild = s->force_dta_rebuild;
     int force_blob_rebuild = s->force_blob_rebuild;
+    int pre_is_temproal, post_is_temproal;
+    pre_is_temproal = post_is_temproal = 0;
+    if (s->is_history == 0 && olddb && olddb->periods[PERIOD_SYSTEM].enable)
+        pre_is_temproal = 1;
+    if (s->is_history == 0 && newdb && newdb->periods[PERIOD_SYSTEM].enable)
+        post_is_temproal = 1;
+    if (!pre_is_temproal && post_is_temproal)
+        force_dta_rebuild = 1;
+
+    if (pre_is_temproal || post_is_temproal) {
+        if (!pre_is_temproal && post_is_temproal)
+            scprint(s, ">    Adding history table\n");
+        else if (pre_is_temproal && !post_is_temproal)
+            scprint(s, ">    Dropping history table\n");
+        else
+            scprint(s, ">    Altering history table\n");
+    }
 
     /* Patch for now to go over blob corruption issue:
        if I am forcing blob rebuilds, I am forcing rec rebuild */
@@ -735,7 +859,7 @@ int create_schema_change_plan(struct schema_change_type *s, struct dbtable *oldd
             sc_printf(s, info + 1);
 
         plan->dta_plan = -1;
-        plan->plan_convert = 1;
+        plan->plan_convert = SC_PLAN_CONVERT;
 
         /* Converting VUTF8 to CSTRING or BLOB to BYTEARRAY */
         if ((newsc->nmembers == oldsc->nmembers) &&
@@ -843,6 +967,10 @@ int create_schema_change_plan(struct schema_change_type *s, struct dbtable *oldd
          * the index must be rebuilt. */
         if ((newixs->flags & SCHEMA_DATACOPY) && plan->dta_plan == -1) {
             plan->ix_plan[ixn] = -1;
+        } else if (!pre_is_temproal && post_is_temproal) { /* add history */
+            plan->ix_plan[ixn] = -1;
+        } else if (pre_is_temproal && !post_is_temproal) { /* drop history */
+            plan->ix_plan[ixn] = -1;
         } else {
             /* Try to find an unused index in the old file which exactly matches
              * this index ondisk. */
@@ -869,7 +997,8 @@ int create_schema_change_plan(struct schema_change_type *s, struct dbtable *oldd
             plan->ix_plan[ixn] = -1;
 
         /* If we have to build an index, we have to run convert_all_records */
-        if (plan->ix_plan[ixn] == -1) plan->plan_convert = 1;
+        if (plan->ix_plan[ixn] == -1)
+            plan->plan_convert = SC_PLAN_CONVERT;
 
         char *str_datacopy;
         if (newixs->flags & SCHEMA_DATACOPY) {
@@ -934,8 +1063,28 @@ int create_schema_change_plan(struct schema_change_type *s, struct dbtable *oldd
     rc = ondisk_schema_changed(s->table, newdb, NULL, s);
     if (rc == SC_CONSTRAINT_CHANGE && !plan->plan_convert &&
         newdb->n_constraints) {
-        plan->plan_convert = 1;
+        plan->plan_convert = SC_PLAN_CONVERT;
         str_constraints = " (to verify constraints)";
+        for (ii = 0; ii < newdb->n_constraints; ii++) {
+            char ondisk_tag[MAXTAGLEN];
+            constraint_t *ct = &newdb->constraints[ii];
+            if (ct->flags == CT_NO_OVERLAP) {
+                if (find_constraint(olddb, ct) == 0) {
+                    snprintf(ondisk_tag, sizeof(ondisk_tag), ".NEW.%s",
+                             ct->lclkeyname);
+                    getidxnumbyname(newdb->tablename, ondisk_tag, &ixn);
+                    plan->ix_plan[ixn] = -1;
+                    plan->plan_convert = SC_KEYVER_CONVERT;
+                    info = ">    Rebuild index %d (%s) %s\n";
+                    if (s->dryrun)
+                        sbuf2printf(s->sb, info, ixn, ct->lclkeyname,
+                                    str_constraints);
+                    else
+                        sc_printf(s, info + 1, ixn, ct->lclkeyname,
+                                  str_constraints);
+                }
+            }
+        }
     }
 
     if (plan->plan_convert)
@@ -985,6 +1134,7 @@ void set_odh_options_tran(struct dbtable *db, tran_type *tran)
     get_db_compress_tran(db, &compr, tran);
     get_db_compress_blobs_tran(db, &blob_compr, tran);
     db->version = get_csc2_version_tran(db->tablename, tran);
+    get_db_start_time(db, &db->tstart, tran);
 
     set_bdb_option_flags(db, db->odh, db->inplace_updates,
                          db->instant_schema_change, db->version, compr,
@@ -1097,6 +1247,7 @@ int restore_constraint_pointers_main(struct dbtable *db, struct dbtable *newdb,
                    db->n_rev_constraints * sizeof(constraint_t *));
         }
         newdb->n_rev_constraints = db->n_rev_constraints;
+        newdb->n_rev_cascade_systime = db->n_rev_cascade_systime;
     }
     /* additionally, for each table i'm pointing to in old db, must get its
      * reverse constraint array updated to get all reverse ct *'s removed */
@@ -1119,16 +1270,20 @@ int restore_constraint_pointers_main(struct dbtable *db, struct dbtable *newdb,
                 } else {
                     rdb->n_rev_constraints--;
                 }
+                if ((ct->flags & (CT_UPD_CASCADE | CT_DEL_CASCADE)) != 0 &&
+                    db->periods[PERIOD_SYSTEM].enable)
+                    rdb->n_rev_cascade_systime--;
             }
         }
         for (int j = 0; j < newdb->n_constraints; j++) {
-            for (int k = 0; k < newdb->constraints[j].nrules; k++) {
+            constraint_t *ct = &newdb->constraints[j];
+            for (int k = 0; k < ct->nrules; k++) {
                 int ridx = 0;
                 int dupadd = 0;
-                if (strcasecmp(newdb->constraints[j].table[k], rdb->tablename))
+                if (strcasecmp(ct->table[k], rdb->tablename))
                     continue;
                 for (ridx = 0; ridx < rdb->n_rev_constraints; ridx++) {
-                    if (rdb->rev_constraints[ridx] == &newdb->constraints[j]) {
+                    if (rdb->rev_constraints[ridx] == ct) {
                         dupadd = 1;
                         break;
                     }
@@ -1141,8 +1296,10 @@ int restore_constraint_pointers_main(struct dbtable *db, struct dbtable *newdb,
                            rdb->tablename);
                     return -1;
                 }
-                rdb->rev_constraints[rdb->n_rev_constraints++] =
-                    &newdb->constraints[j];
+                rdb->rev_constraints[rdb->n_rev_constraints++] = ct;
+                if ((ct->flags & (CT_UPD_CASCADE | CT_DEL_CASCADE)) != 0 &&
+                    newdb->periods[PERIOD_SYSTEM].enable)
+                    rdb->n_rev_cascade_systime++;
             }
         }
     }
@@ -1260,6 +1417,8 @@ int compatible_constraint_source(struct dbtable *olddb, struct dbtable *newdb,
             continue;
         for (j = 0; j < db->n_constraints; ++j) {
             constraint_t *ct = &db->constraints[j];
+            if (ct->flags == CT_NO_OVERLAP)
+                continue;
             for (k = 0; k < ct->nrules; ++k) {
                 if (strcmp(dbname, ct->table[k]) == 0 &&
                     strcasecmp(key, ct->keynm[k]) == 0) {
@@ -1299,6 +1458,9 @@ int remove_constraint_pointers(struct dbtable *db)
                 } else {
                     rdb->n_rev_constraints--;
                 }
+                if ((ct->flags & (CT_UPD_CASCADE | CT_DEL_CASCADE)) != 0 &&
+                    db->periods[PERIOD_SYSTEM].enable)
+                    rdb->n_rev_cascade_systime--;
             }
         }
     }

@@ -37,6 +37,7 @@
 
 %token T_STRING T_NUM T_FLOAT T_SQLHEXSTR
 %token T_WHERE T_VARNAME T_COMMENT
+%token T_PERIODS
 
 %token T_LOGICAL T_INTEGER2 T_INTEGER4 
 %token T_CSTR T_PSTR T_REAL4 T_REAL8 
@@ -56,6 +57,7 @@
 %token T_TABLE_TAG T_DEFAULT T_ONDISK T_SCHEMA
 %token T_CONSTRAINTS T_CASCADE
 %token T_CON_ON  T_CON_UPDATE T_CON_DELETE T_RESTRICT
+%token T_CON_NOOVERLAP
 
 %token T_RECNUMS T_PRIMARY T_DATAKEY 
 %token T_YES T_NO
@@ -121,6 +123,7 @@ validstruct:	recstruct
             |	keystruct
             |   constantstruct
             |   constraintstruct
+            |   periodstruct
 			;
 
 
@@ -135,14 +138,16 @@ ctmodifiers:    T_CON_ON T_CON_UPDATE T_CASCADE ctmodifiers           { set_cons
                 | /* %empty */
                 ;
 
-cnstrtstart:    string '-' T_GT { end_constraint_list(); start_constraint_list($1); }
-                | varname '-' T_GT { end_constraint_list(); start_constraint_list($1); }
-                ;
+cnstrtstart: string '-' T_GT { end_constraint_list(); start_constraint_list($1, 0); }
+           | varname '-' T_GT { end_constraint_list(); start_constraint_list($1, 0); }
+           | T_CON_NOOVERLAP string '-' T_GT { end_constraint_list(); start_constraint_list($2, 1); }
+           | T_CON_NOOVERLAP varname '-' T_GT { end_constraint_list(); start_constraint_list($2, 1); }
+           ;
 
 /* Named constraint (introduced in r7) */
 cnstrtnamedstart: string '=' string '-' T_GT {
                       end_constraint_list();
-                      start_constraint_list($3);
+                      start_constraint_list($3, 0);
                       set_constraint_name($1);
                   }
 
@@ -153,14 +158,15 @@ cnstrtdef:      cnstrtdef cnstrtstart cnstrtparentlist ctmodifiers { /*end_const
                 ;
 
 cnstrtparentlist: cnstrtparentlist T_LT string ':' string T_GT  {  add_constraint($3,$5); }
+                | cnstrtparentlist T_LT varname ':' varname T_GT  {  add_constraint($3,$5); }
                 | T_LT string ':' string T_GT  {  add_constraint($2,$4); }
+                | T_LT varname ':' varname T_GT  {  add_constraint($2,$4); }
                 | string ':' string {  add_constraint($1,$3); }
                 | varname ':' varname {  add_constraint($1,$3); }
                 ;
 
 cnstrtparent:   T_LT string ':' string T_GT  {  add_constraint($2,$4); }
                 ;
-
 
 
 /* constantstruct: defines constants
@@ -347,6 +353,39 @@ comment:	T_COMMENT
 		;
 
 
+/* periodstruct: defines temporals
+**	ie.
+**	periods {
+**		SYSTEM(sys_start, sys_end)
+**		BUSINESS(bus_start, bus_end)
+**	}
+*/
+
+periodstruct:	periodstart '{' multipddef '}'
+		;
+
+periodstart:    T_PERIODS { start_periods_list(); }
+        ;
+
+multipddef:	pddef multipddef
+		|   pddef
+		;
+
+pddef:  varname '(' varname ',' varname ')' comment
+        {
+            reset_array();
+            reset_range();
+            key_piece_clear();
+
+            key_setdup();
+            key_piece_add($3, 0);
+            key_piece_add($5, 0);
+            key_add_tag($1,0,0);
+            key_piece_clear();
+
+            add_period($1,$3,$5);
+        }
+    ;
 
 
 /* keystruct: defines a key
@@ -367,12 +406,22 @@ multikeydef:	keydef multikeydef
 keydef:		multikeyflags string '=' compoundkey where comment
 							{ 
 							key_add_tag($2,0,$5);
-							key_piece_clear(); 
+							key_piece_clear();
+							}
+		|	multikeyflags varname '=' compoundkey where comment
+							{	/* conditional key */
+							key_add_tag($2,0,$5);
+							key_piece_clear();
 							}
 		|	multikeyflags string '(' typename ')' '=' compoundkey where comment
 							{	/* conditional key */
-							key_add_tag($2,$4,$8); 
-							key_piece_clear(); 
+							key_add_tag($2,$4,$8);
+							key_piece_clear();
+							}
+		|	multikeyflags varname '(' typename ')' '=' compoundkey where comment
+							{	/* conditional key */
+							key_add_tag($2,$4,$8);
+							key_piece_clear();
 							}
 		;
 
