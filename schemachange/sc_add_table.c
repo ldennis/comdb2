@@ -132,6 +132,10 @@ int add_table_to_environment(char *table, char *fname, const char *csc2,
         return SC_CSC2_ERROR;
     }
     newdb = newdb_from_schema(thedb, table, fname, 0, thedb->num_dbs, 0);
+    if (s && s->is_history)
+        newdb->is_history_table = 1;
+    if (newdb->is_history_table)
+        newdb->orig_db = s->orig_db;
 
     if (newdb == NULL)
         return SC_INTERNAL_ERROR;
@@ -254,16 +258,68 @@ int do_add_table_int(struct schema_change_type *s, struct ireq *iq)
     return 0;
 }
 
+int finalize_add_table_tran(void *tran, struct schema_change_type *s)
+{
+    int rc, bdberr;
+    struct db *db = s->db;
+    rc = load_new_table_schema_tran(thedb, tran, s->table, s->newcsc2);
+    if (rc != 0) {
+        sc_errf(s, "error recording new table schema\n");
+        return -1;
+    }
+
+    /* Set instant schema-change */
+    db->instant_schema_change = db->odh && s->instant_sc;
+
+    if ((rc = set_header_and_properties(tran, db, s, 0, gbl_init_with_bthash)))
+        return -1;
+
+    if (llmeta_set_tables(tran, thedb)) {
+        sc_errf(s, "Failed to set table names in low level meta\n");
+        return -1;
+    }
+
+    if (bdb_table_version_select(db->handle, tran, &db->tableversion,
+                                 &bdberr)) {
+        sc_errf(s, "Failed fetching table version bdberr %d\n", bdberr);
+        return -1;
+    }
+
+    if ((rc = mark_schemachange_over(tran, db->dbname)))
+        return -1;
+
+    /* Save .ONDISK as schema version 1 if instant_sc is enabled. */
+    if (db->odh && db->instant_schema_change) {
+        struct schema *ver_one;
+        if ((rc = prepare_table_version_one(tran, db, &ver_one)))
+            return -1;
+        add_tag_schema(db->dbname, ver_one);
+    }
+    return 0;
+}
+
+void finalize_add_table_done(struct schema_change_type *s)
+{
+    struct db *db = s->db;
+    db->sc_to = NULL;
+    update_dbstore(db);
+
+    if (gbl_init_with_bthash) {
+        logmsg(LOGMSG_INFO, "Init table with bthash size %dkb per stripe\n",
+               gbl_init_with_bthash);
+        bdb_handle_dbp_add_hash(db->handle, gbl_init_with_bthash);
+    }
+}
+
 int finalize_add_table(struct schema_change_type *s)
 {
     int rc, bdberr = 0;
     int retries = 0;
     struct ireq iq;
-    struct db *db = s->db;
     void *tran = NULL;
 
     init_fake_ireq(thedb, &iq);
-    iq.usedb = db;
+    iq.usedb = s->db;
 retry_add_table:
 
     if (tran) /* if this is a retry and not the first pass */
@@ -289,39 +345,10 @@ retry_add_table:
 
     sc_printf(s, "Start add table transaction ok\n");
 
-    rc = load_new_table_schema_tran(thedb, tran, s->table, s->newcsc2);
-    if (rc != 0) {
-        sc_errf(s, "error recording new table schema\n");
+    if (finalize_add_table_tran(tran, s))
         goto retry_add_table;
-    }
-
-    /* Set instant schema-change */
-    db->instant_schema_change = db->odh && s->instant_sc;
-
-    if ((rc = set_header_and_properties(tran, db, s, 0, gbl_init_with_bthash)))
+    if (s->add_history && finalize_add_table_tran(tran, s->history_s))
         goto retry_add_table;
-
-    if (llmeta_set_tables(tran, thedb)) {
-        sc_errf(s, "Failed to set table names in low level meta\n");
-        goto retry_add_table;
-    }
-
-    if (bdb_table_version_select(db->handle, tran, &db->tableversion,
-                                 &bdberr)) {
-        sc_errf(s, "Failed fetching table version bdberr %d\n", bdberr);
-        goto retry_add_table;
-    }
-
-    if ((rc = mark_schemachange_over(tran, db->dbname)))
-        goto retry_add_table;
-
-    /* Save .ONDISK as schema version 1 if instant_sc is enabled. */
-    if (db->odh && db->instant_schema_change) {
-        struct schema *ver_one;
-        if ((rc = prepare_table_version_one(tran, db, &ver_one)))
-            goto retry_add_table;
-        add_tag_schema(db->dbname, ver_one);
-    }
 
     create_sqlmaster_records(tran);
     create_master_tables();
@@ -332,25 +359,17 @@ retry_add_table:
     }
 
     tran = NULL;
-    db->sc_to = NULL;
-    update_dbstore(db);
     sc_printf(s, "Add table ok\n");
+
+    finalize_add_table_done(s);
+    if (s->add_history)
+        finalize_add_table_done(s->history_s);
 
     fix_lrl_ixlen();
 
-    if (gbl_init_with_bthash) {
-        logmsg(LOGMSG_INFO, "Init table with bthash size %dkb per stripe\n",
-               gbl_init_with_bthash);
-        if (put_db_bthash(db, NULL, gbl_init_with_bthash) != 0) {
-            logmsg(LOGMSG_ERROR, "Failed to write bthash to meta table\n");
-            return -1;
-        }
-        bdb_handle_dbp_add_hash(db->handle, gbl_init_with_bthash);
-    }
-
     /* this is the custom log record to tell replicants to add the
      * table*/
-    if ((rc = bdb_llog_scdone(db->handle, add, 1, &bdberr)) ||
+    if ((rc = bdb_llog_scdone(s->db->handle, add, 1, &bdberr)) ||
         bdberr != BDBERR_NOERROR) {
         sc_errf(s, "Failed to send logical log scdone rc=%d bdberr=%d\n", rc,
                 bdberr);

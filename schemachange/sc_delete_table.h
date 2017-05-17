@@ -18,6 +18,14 @@
 #define INCLUDE_SC_FASTINIT_H
 
 int delete_table(char *table);
-int do_fastinit_int(struct schema_change_type *s);
+int do_fastinit_int(struct schema_change_type *s, struct ireq *iniq);
 int finalize_fastinit_table(struct schema_change_type *s);
+int finalize_fastinit_table_prepare(struct schema_change_type *s, void *transac,
+                                    int *bdberr);
+int finalize_fastinit_table_tran(struct schema_change_type *s, void *tran,
+                                 int olddb_bthashsz, int *bdberr);
+int finalize_fastinit_table_drop(struct schema_change_type *s, void *transac,
+                                 int *bdberr);
+void finalize_fastinit_table_drop_done(struct schema_change_type *s);
+int finalize_fastinit_table_backout(struct schema_change_type *s, int *bdberr);
 #endif

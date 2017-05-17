@@ -145,6 +145,7 @@ struct schema_change_type {
     /********************** it will change eventually (do not try to serialize)
      * ************/
 
+    /* temporal table */
     struct db *db;
     struct db *newdb;
     struct scplan plan; /**** TODO This is an abomination, i know. Yet still
@@ -152,6 +153,14 @@ struct schema_change_type {
                              At least this datastructure lives as much as the
                            whole schema change (I will change this in the
                            future)*/
+
+    int is_history;
+    struct schema_change_type *history_s;
+    int history_rc;
+    int add_history;
+    int drop_history;
+    int alter_history;
+    struct db *orig_db;
  
     struct db **timepart_dbs; /* support for timepart views */
     struct db **timepart_newdbs;
@@ -254,6 +263,9 @@ int unpack_schema_change_type(struct schema_change_type *s, void *packed,
 void init_schemachange_type(struct schema_change_type *sc);
 
 struct schema_change_type *new_schemachange_type();
+
+void deep_copy_schemachange_type(struct schema_change_type *des,
+                                 struct schema_change_type *src);
 
 void cleanup_strptr(char **schemabuf);
 

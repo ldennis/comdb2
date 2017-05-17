@@ -7305,7 +7305,7 @@ rep:
 
     int fndlen;
     char *tmpstr = NULL;
-    if ((rc = bdb_lite_exact_var_fetch_tran(llmeta_bdb_state, NULL, llkey,
+    if ((rc = bdb_lite_exact_var_fetch_tran(llmeta_bdb_state, tran, llkey,
                                             (void **)&tmpstr, &fndlen,
                                             &bdberr)) != 0) {
 

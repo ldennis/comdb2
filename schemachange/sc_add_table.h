@@ -22,5 +22,6 @@ int add_table_to_environment(char *table, char *fname, const char *csc2,
                              const char *aname, struct schema_change_type *s,
                              struct ireq *iq);
 int finalize_add_table(struct schema_change_type *s);
-
+int finalize_add_table_tran(void *tran, struct schema_change_type *s);
+void finalize_add_table_done(struct schema_change_type *s);
 #endif

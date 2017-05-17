@@ -154,9 +154,10 @@ static unsigned long long revalidate_new_indexes(
  * since adding them not-delayed could cause SC to abort erroneously
  */
 int live_sc_post_update_delayed_key_adds_int(struct ireq *iq, void *trans,
-                                        unsigned long long newgenid,
-                                        const void *od_dta,
-                                        unsigned long long ins_keys, int od_len)
+                                             unsigned long long newgenid,
+                                             const void *od_dta,
+                                             unsigned long long ins_keys,
+                                             int od_len)
 {
     struct db *usedb = iq->usedb;
     blob_status_t oldblobs[MAXBLOBS];
@@ -164,7 +165,7 @@ int live_sc_post_update_delayed_key_adds_int(struct ireq *iq, void *trans,
     blob_buffer_t *add_idx_blobs = NULL;
     int rc = 0;
 
-    if( !(sc_live && usedb->sc_from == iq->usedb) ) {
+    if (!(sc_live && usedb->sc_from == iq->usedb)) {
         return 0;
     }
 #ifdef DEBUG
@@ -175,9 +176,10 @@ int live_sc_post_update_delayed_key_adds_int(struct ireq *iq, void *trans,
      * post_update */
     int stripe = get_dtafile_from_genid(newgenid);
     if (stripe < 0 || stripe >= gbl_dtastripe) {
-        logmsg(LOGMSG_ERROR, "live_sc_post_update_delayed_key_adds_int: newgenid 0x%llx "
-                        "stripe %d out of range!\n",
-                newgenid, stripe);
+        logmsg(LOGMSG_ERROR,
+               "live_sc_post_update_delayed_key_adds_int: newgenid 0x%llx "
+               "stripe %d out of range!\n",
+               newgenid, stripe);
         return 0;
     }
 
@@ -185,8 +187,10 @@ int live_sc_post_update_delayed_key_adds_int(struct ireq *iq, void *trans,
         iq->usedb->handle, newgenid, usedb->sc_to->sc_genids[stripe]);
     if (is_gen_gt_scptr) {
         if (iq->debug) {
-            reqprintf(iq, "live_sc_post_update_delayed_key_adds_int: skip genid 0x%llx to the right of scptr", newgenid);
-        }    
+            reqprintf(iq, "live_sc_post_update_delayed_key_adds_int: skip "
+                          "genid 0x%llx to the right of scptr",
+                      newgenid);
+        }
         return 0;
     }
 
@@ -195,7 +199,8 @@ int live_sc_post_update_delayed_key_adds_int(struct ireq *iq, void *trans,
     if (iq->usedb->sc_to->ix_blob) {
         rc = save_old_blobs(iq, trans, ".ONDISK", od_dta, 2, newgenid, oldblobs);
         if (rc) {
-            fprintf(stderr, "%s() save old blobs failed rc %d\n", __func__, rc);
+            logmsg(LOGMSG_ERROR, "%s() save old blobs failed rc %d\n", __func__,
+                   rc);
             return rc;
         }
         blob_status_to_blob_buffer(oldblobs, add_blobs_buf);
@@ -252,9 +257,9 @@ int live_sc_post_update_delayed_key_adds_int(struct ireq *iq, void *trans,
 }
 
 int live_sc_post_add_int(struct ireq *iq, void *trans, unsigned long long genid,
-                         const uint8_t *od_dta, 
-                         unsigned long long ins_keys, blob_buffer_t *blobs,
-                         size_t maxblobs, int origflags, int *rrn)
+                         const uint8_t *od_dta, unsigned long long ins_keys,
+                         blob_buffer_t *blobs, size_t maxblobs, int origflags,
+                         int *rrn)
 
 {
 #ifdef DEBUG
@@ -269,7 +274,6 @@ int live_sc_post_add_int(struct ireq *iq, void *trans, unsigned long long genid,
     int rc;
     struct db *usedb = iq->usedb;
 
-
     /* Convert record from .ONDISK -> .NEW..ONDISK */
 
     void *new_dta = malloc(usedb->sc_to->lrl);
@@ -278,7 +282,7 @@ int live_sc_post_add_int(struct ireq *iq, void *trans, unsigned long long genid,
         return 1;
     }
     struct convert_failure reason;
-    rc = stag_to_stag_buf_blobs(usedb->sc_to->dbname, ".ONDISK", od_dta, 
+    rc = stag_to_stag_buf_blobs(usedb->sc_to->dbname, ".ONDISK", od_dta,
                                 ".NEW..ONDISK", new_dta, &reason, blobs,
                                 maxblobs, 1);
     if (rc) {
@@ -288,6 +292,21 @@ int live_sc_post_add_int(struct ireq *iq, void *trans, unsigned long long genid,
         return rc;
     }
 
+    if (usedb->sc_to->overwrite_systime) {
+        int temporal_overwrite_systime(struct ireq *iq, uint8_t *rec,
+                                       int use_tstart);
+        rc = temporal_overwrite_systime(iq, new_dta, 0);
+        if (rc) {
+            logmsg(LOGMSG_ERROR,
+                   "%s: temporal_overwrite_systime table %s failed\n", __func__,
+                   iq->usedb->sc_to->dbname);
+            gbl_sc_abort = 1;
+            MEMORY_SYNC;
+            free(new_dta);
+            return rc;
+        }
+    }
+
     ins_keys = revalidate_new_indexes(iq, usedb->sc_to, new_dta, blobs,
                                       maxblobs);
 
@@ -295,7 +314,8 @@ int live_sc_post_add_int(struct ireq *iq, void *trans, unsigned long long genid,
         int rebuild = usedb->sc_to->plan && usedb->sc_to->plan->dta_plan;
 #ifdef DEBUG
         fprintf(stderr, "live_sc_post_add_int: need to "
-                        "verify_record_constraint genid 0x%llx\n", genid);
+                        "verify_record_constraint genid 0x%llx\n",
+                genid);
 #endif
         rc = verify_record_constraint(iq, usedb->sc_to, trans, new_dta,
                                       ins_keys, blobs, maxblobs, ".NEW..ONDISK",
@@ -329,7 +349,7 @@ int live_sc_post_add_int(struct ireq *iq, void *trans, unsigned long long genid,
     }
 
     rc = add_record(iq, trans, p_tagname_buf, p_tagname_buf_end, new_dta,
-                    new_dta + usedb->sc_to->lrl, NULL, blobs, maxblobs, 
+                    new_dta + usedb->sc_to->lrl, NULL, blobs, maxblobs,
                     &opfailcode, &ixfailnum, rrn, &genid, ins_keys,
                     BLOCK2_ADDKL, // opcode
                     0,            // blkpos
@@ -378,13 +398,14 @@ int live_sc_post_update_int(struct ireq *iq, void *trans,
 
     if (iq->debug) {
         reqpushprefixf(iq, "live_sc_post_update_int: ");
-        reqprintf(iq, "updating genid 0x%llx to 0x%llx in new table (defered=%d)", oldgenid,
-                  newgenid, deferredAdd);
+        reqprintf(iq,
+                  "updating genid 0x%llx to 0x%llx in new table (defered=%d)",
+                  oldgenid, newgenid, deferredAdd);
     }
 
     rc = upd_new_record(iq, trans, oldgenid, old_dta, newgenid, new_dta,
-                       ins_keys, del_keys, od_len, updCols, blobs, deferredAdd,
-                       oldblobs, newblobs);
+                        ins_keys, del_keys, od_len, updCols, blobs, deferredAdd,
+                        oldblobs, newblobs);
     iq->usedb = usedb;
     if (rc != 0 && rc != RC_INTERNAL_RETRY) {
         logmsg(LOGMSG_ERROR, "live_sc_post_update_int: rcode %d for update genid "
@@ -524,6 +545,30 @@ static int replicant_reload_views(const char *name)
     return rc;
 }
 
+static inline void scdone_callback_isc_verone(int add_new_db, struct db *db)
+{
+    if (add_new_db && db && db->odh && db->instant_schema_change) {
+        struct schema *ondisk_schema;
+        struct schema *ver_one;
+        char tag[MAXTAGLEN];
+
+        ondisk_schema = find_tag_schema(db->dbname, ".ONDISK");
+        if (NULL == ondisk_schema) {
+            logmsg(LOGMSG_FATAL, ".ONDISK not found in %s! PANIC!!\n", db->dbname);
+            exit(1);
+        }
+        ver_one = clone_schema(ondisk_schema);
+        sprintf(tag, gbl_ondisk_ver_fmt, 1);
+        free(ver_one->tag);
+        ver_one->tag = strdup(tag);
+        if (ver_one->tag == NULL) {
+            logmsg(LOGMSG_FATAL, "strdup failed %s @ %d\n", __func__, __LINE__);
+            exit(1);
+        }
+        add_tag_schema(db->dbname, ver_one);
+    }
+}
+
 /* TODO fail gracefully now that inline? */
 /* called by bdb layer through a callback as a detached thread,
  * we take ownership of table string
@@ -560,10 +605,12 @@ int scdone_callback(const char table[], scdone_t type)
     }
 
     int add_new_db = 0;
+    int add_history_db = 0;
     int rc = 0;
     char *csc2text = NULL;
     char *table_copy = NULL;
     struct db *db;
+    struct db *history_db = NULL;
     void *tran = NULL;
     int bdberr;
     int highest_ver;
@@ -611,8 +658,61 @@ int scdone_callback(const char table[], scdone_t type)
                     __func__, table);
             exit(1);
         }
+        db = getdbbyname(table);
+        if (!db) {
+            logmsg(LOGMSG_ERROR, "%s: could not find newly created db: %s.\n",
+                   __func__, table);
+            exit(1);
+        }
+        if (db->periods[PERIOD_SYSTEM].enable) {
+            char *history_table = alloca(MAXTABLELEN);
+            if (csc2text)
+                free(csc2text);
+            csc2text = NULL;
+            snprintf(history_table, MAXTABLELEN, "%s_history", db->dbname);
+            if (get_csc2_file(history_table, -1, &csc2text, NULL)) {
+                logmsg(LOGMSG_ERROR, "%s: error getting schema for %s.\n",
+                       __func__, table);
+                exit(1);
+            }
+            logmsg(LOGMSG_INFO, "Replicant adding history table: %s\n",
+                   history_table);
+            if (add_table_to_environment(history_table, NULL, csc2text, NULL,
+                                         NULL, NULL)) {
+                logmsg(LOGMSG_ERROR, "%s: error adding table %s.\n", __func__,
+                       history_table);
+                exit(1);
+            }
+            history_db = getdbbyname(history_table);
+            if (!history_db) {
+                logmsg(LOGMSG_ERROR,
+                       "%s: could not find newly created db: %s.\n", __func__,
+                       history_table);
+                exit(1);
+            }
+            history_db->is_history_table = 1;
+            db->history_db = history_db;
+            history_db->orig_db = db;
+            add_history_db = 1;
+        }
     } else if (type == drop) {
         logmsg(LOGMSG_INFO, "Replicant dropping table:%s\n", table);
+        db = getdbbyname(table);
+        if (!db) {
+            logmsg(LOGMSG_ERROR, "%s: could not find db: %s.\n", __func__,
+                   table);
+            exit(1);
+        }
+        if (db->history_db) {
+            history_db = db->history_db;
+            logmsg(LOGMSG_INFO, "Replicant dropping history table: %s\n",
+                   history_db->dbname);
+            if (delete_table_rep(history_db->dbname)) {
+                logmsg(LOGMSG_ERROR, "%s: error deleting table %s.\n", __func__,
+                       history_db->dbname);
+                exit(1);
+            }
+        }
         if (delete_table_rep((char *)table)) {
             logmsg(LOGMSG_FATAL, "%s: error deleting table "
                             " %s.\n",
@@ -632,18 +732,113 @@ int scdone_callback(const char table[], scdone_t type)
         logmsg(LOGMSG_INFO, "Replicant bulkimporting table:%s\n", table);
         reload_after_bulkimport(db, tran);
     } else {
+        int pre_is_temproal, post_is_temproal;
+        pre_is_temproal = post_is_temproal = 0;
         logmsg(LOGMSG_INFO, "Replicant %s table:%s\n",
                type == alter ? "altering" : "fastinit-ing", table);
         extern int gbl_broken_max_rec_sz;
         int saved_broken_max_rec_sz = gbl_broken_max_rec_sz;
         if(db->lrl > COMDB2_MAX_RECORD_SIZE) 
             gbl_broken_max_rec_sz = db->lrl - COMDB2_MAX_RECORD_SIZE;
+        db = getdbbyname(table);
+        if (!db) {
+            logmsg(LOGMSG_ERROR, "%s: could not find db: %s.\n", __func__,
+                   table);
+            exit(1);
+        }
+        if (db->periods[PERIOD_SYSTEM].enable) {
+            pre_is_temproal = 1;
+            history_db = db->history_db;
+        }
         if (reload_schema(table_copy, csc2text)) {
             logmsg(LOGMSG_FATAL, "%s: error reloading schema for %s.\n", __func__,
                     table);
             exit(1);
         }
         gbl_broken_max_rec_sz = saved_broken_max_rec_sz;
+        db = getdbbyname(table);
+        if (!db) {
+            logmsg(LOGMSG_ERROR, "%s: could not find db: %s.\n", __func__,
+                   table);
+            exit(1);
+        }
+        if (db->periods[PERIOD_SYSTEM].enable)
+            post_is_temproal = 1;
+
+        if (pre_is_temproal || post_is_temproal) {
+            if (!pre_is_temproal && post_is_temproal) {
+                /* add history table */
+                char *history_table = alloca(MAXTABLELEN);
+                if (csc2text)
+                    free(csc2text);
+                csc2text = NULL;
+                snprintf(history_table, MAXTABLELEN, "%s_history", db->dbname);
+                if (get_csc2_file(history_table, -1, &csc2text, NULL)) {
+                    logmsg(LOGMSG_ERROR, "%s: error getting schema for %s.\n",
+                           __func__, table);
+                    exit(1);
+                }
+                logmsg(LOGMSG_INFO, "Replicant adding history table: %s\n",
+                       history_table);
+                if (add_table_to_environment(history_table, NULL, csc2text,
+                                             NULL, NULL, NULL)) {
+                    logmsg(LOGMSG_ERROR, "%s: error adding table %s.\n",
+                           __func__, history_table);
+                    exit(1);
+                }
+                history_db = getdbbyname(history_table);
+                if (!history_db) {
+                    logmsg(LOGMSG_ERROR,
+                           "%s: could not find newly created db: %s\n",
+                           __func__, history_table);
+                    exit(1);
+                }
+                history_db->is_history_table = 1;
+                db->history_db = history_db;
+                history_db->orig_db = db;
+                add_history_db = 1;
+            } else if (pre_is_temproal && !post_is_temproal) {
+                /* drop history table */
+                logmsg(LOGMSG_INFO, "Replicant dropping history table: %s\n",
+                       history_db->dbname);
+                if (delete_table_rep(history_db->dbname)) {
+                    logmsg(LOGMSG_ERROR, "%s: error deleting table %s.\n",
+                           __func__, history_db->dbname);
+                    exit(1);
+                }
+                db->history_db = NULL;
+                history_db = NULL;
+            } else {
+                /* alter history table */
+                if (csc2text)
+                    free(csc2text);
+                if (table_copy)
+                    free(table_copy);
+                csc2text = NULL;
+                table_copy = strdup(history_db->dbname);
+                logmsg(LOGMSG_INFO, "Replicant altering history table: %s\n",
+                       history_db->dbname);
+                if (get_csc2_file(table_copy, -1, &csc2text, NULL)) {
+                    logmsg(LOGMSG_ERROR, "%s: error getting schema for %s.\n",
+                           __func__, table);
+                    exit(1);
+                }
+                if (reload_schema(table_copy, csc2text)) {
+                    logmsg(LOGMSG_ERROR, "%s: error reloading schema for %s.\n",
+                           __func__, table);
+                    exit(1);
+                }
+                history_db = getdbbyname(table_copy);
+                if (!history_db) {
+                    logmsg(LOGMSG_ERROR, "%s: could not find db: %s.\n",
+                           __func__, table_copy);
+                    exit(1);
+                }
+                history_db->is_history_table = 1;
+                db->history_db = history_db;
+                history_db->orig_db = db;
+            }
+        }
 
         if (create_sqlmaster_records(tran)) {
             logmsg(LOGMSG_FATAL, "create_sqlmaster_records: error creating sqlite "
@@ -667,32 +862,20 @@ int scdone_callback(const char table[], scdone_t type)
 
     set_odh_options(db);
     db->tableversion = table_version_select(db);
+    if (history_db) {
+        set_odh_options(history_db);
+        history_db->tableversion = table_version_select(history_db);
+    }
 
     /* Make sure to add a version 1 schema for instant-schema change tables */
-    if (add_new_db && db->odh && db->instant_schema_change) {
-        struct schema *ondisk_schema;
-        struct schema *ver_one;
-        char tag[MAXTAGLEN];
-
-        ondisk_schema = find_tag_schema(db->dbname, ".ONDISK");
-        if (NULL == ondisk_schema) {
-            logmsg(LOGMSG_FATAL, ".ONDISK not found in %s! PANIC!!\n", db->dbname);
-            exit(1);
-        }
-        ver_one = clone_schema(ondisk_schema);
-        sprintf(tag, gbl_ondisk_ver_fmt, 1);
-        free(ver_one->tag);
-        ver_one->tag = strdup(tag);
-        if (ver_one->tag == NULL) {
-            logmsg(LOGMSG_FATAL, "strdup failed %s @ %d\n", __func__, __LINE__);
-            exit(1);
-        }
-        add_tag_schema(db->dbname, ver_one);
-    }
+    scdone_callback_isc_verone(add_new_db, db);
+    scdone_callback_isc_verone(add_history_db, history_db);
 
     ++gbl_dbopen_gen;
     llmeta_dump_mapping(thedb);
     llmeta_dump_mapping_table(thedb, table, 1);
+    if (history_db)
+        llmeta_dump_mapping_table(thedb, history_db->dbname, 1);
 
     /* Fetch the correct dbnum for this table.  We need this step because db
      * numbers aren't stored in the schema, and it's not handed to us during
@@ -705,6 +888,16 @@ int scdone_callback(const char table[], scdone_t type)
         goto done;
     }
     db->dbnum = dbnum;
+    if (history_db) {
+        dbnum = llmeta_get_dbnum(history_db->dbname, &bdberr);
+        if (dbnum == -1) {
+            logmsg(LOGMSG_ERROR, "failed to fetch dbnum for table \"%s\"\n",
+                   history_db->dbname);
+            rc = BDBERR_MISC;
+            goto done;
+        }
+        history_db->dbnum = dbnum;
+    }
 
     fix_lrl_ixlen();
 

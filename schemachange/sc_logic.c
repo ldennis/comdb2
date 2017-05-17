@@ -190,6 +190,149 @@ static int set_original_tablename(struct schema_change_type *s)
 
 /*********** Outer Business logic for schemachanges ************************/
 
+char *generate_history_csc2(struct db *db)
+{
+    struct schema *schema;
+    int field;
+    strbuf *csc2;
+    int ixnum;
+    char buf[128];
+    char *outcsc2 = NULL;
+
+    schema = db->schema;
+    csc2 = strbuf_new();
+    strbuf_clear(csc2);
+
+    strbuf_append(csc2, "\n");
+    strbuf_append(csc2, "tag ondisk\n");
+    strbuf_append(csc2, "{\n");
+    for (field = 0; field < schema->nmembers; field++) {
+        strbuf_append(csc2, "\t");
+        strbuf_append(csc2, csc2type(&schema->member[field]));
+        strbuf_append(csc2, "\t");
+        strbuf_append(csc2, schema->member[field].name);
+        switch (schema->member[field].type) {
+        case SERVER_BYTEARRAY:
+            strbuf_append(csc2, "[");
+            snprintf(buf, 128, "%d", schema->member[field].len - 1);
+            strbuf_append(csc2, buf);
+            strbuf_append(csc2, "]");
+            break;
+        case SERVER_BCSTR:
+        case CLIENT_CSTR:
+        case CLIENT_PSTR2:
+        case CLIENT_PSTR:
+        case CLIENT_BYTEARRAY:
+            strbuf_append(csc2, "[");
+            snprintf(buf, 128, "%d", schema->member[field].len);
+            strbuf_append(csc2, buf);
+            strbuf_append(csc2, "]");
+            break;
+        case CLIENT_VUTF8:
+        case SERVER_VUTF8:
+            if (schema->member[field].len > 5) {
+                strbuf_append(csc2, "[");
+                snprintf(buf, 128, "%d", schema->member[field].len - 5);
+                strbuf_append(csc2, buf);
+                strbuf_append(csc2, "]");
+            }
+            break;
+        default:
+            break;
+        }
+        if (!(schema->member[field].flags & NO_NULL))
+            strbuf_append(csc2, " null=yes");
+        if (schema->member[field].in_default) {
+            strbuf_append(csc2, " dbstore=");
+            strbuf_append(csc2,
+                          sql_field_default_trans(&(schema->member[field]), 0));
+        }
+        if (schema->member[field].out_default) {
+            strbuf_append(csc2, " dbload=");
+            strbuf_append(csc2,
+                          sql_field_default_trans(&(schema->member[field]), 1));
+        }
+        strbuf_append(csc2, "\n");
+    }
+    strbuf_append(csc2, "}\n");
+    if (db->nix > 0) {
+        strbuf_append(csc2, "keys\n");
+        strbuf_append(csc2, "{\n");
+        /* do the indices */
+        for (ixnum = 0; ixnum < db->nix; ixnum++) {
+            schema = db->ixschema[ixnum];
+            strbuf_append(csc2, "\t dup ");
+            if (schema->flags & SCHEMA_DATACOPY) {
+                strbuf_append(csc2, "datacopy ");
+            }
+            if (schema->flags & SCHEMA_RECNUM) {
+                strbuf_append(csc2, "recnum ");
+            }
+            strbuf_append(csc2, "\"");
+            if (strncasecmp(schema->csctag, ".NEW.", 5) == 0)
+                strbuf_append(csc2, schema->csctag + 5);
+            else
+                strbuf_append(csc2, schema->csctag);
+            strbuf_append(csc2, "\" = ");
+            for (field = 0; field < schema->nmembers; field++) {
+                if (field > 0)
+                    strbuf_append(csc2, " + ");
+                if (schema->member[field].flags & INDEX_DESCEND)
+                    strbuf_append(csc2, "<DESCEND> ");
+                if (schema->member[field].isExpr) {
+                    strbuf_append(csc2, "(");
+                    strbuf_append(csc2, csc2type(&schema->member[field]));
+                    switch (schema->member[field].type) {
+                    case SERVER_BYTEARRAY:
+                        strbuf_append(csc2, "[");
+                        snprintf(buf, 128, "%d", schema->member[field].len - 1);
+                        strbuf_append(csc2, buf);
+                        strbuf_append(csc2, "]");
+                        break;
+                    case SERVER_BCSTR:
+                    case CLIENT_CSTR:
+                    case CLIENT_PSTR2:
+                    case CLIENT_PSTR:
+                    case CLIENT_BYTEARRAY:
+                        strbuf_append(csc2, "[");
+                        snprintf(buf, 128, "%d", schema->member[field].len);
+                        strbuf_append(csc2, buf);
+                        strbuf_append(csc2, "]");
+                        break;
+                    case CLIENT_VUTF8:
+                    case SERVER_VUTF8:
+                        if (schema->member[field].len > 5) {
+                            strbuf_append(csc2, "[");
+                            snprintf(buf, 128, "%d",
+                                     schema->member[field].len - 5);
+                            strbuf_append(csc2, buf);
+                            strbuf_append(csc2, "]");
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                    strbuf_append(csc2, ")\"");
+                }
+                strbuf_append(csc2, schema->member[field].name);
+                if (schema->member[field].isExpr) {
+                    strbuf_append(csc2, "\"");
+                }
+            }
+            if (schema->where) {
+                strbuf_append(csc2, " {");
+                strbuf_append(csc2, schema->where);
+                strbuf_append(csc2, "}");
+            }
+            strbuf_append(csc2, "\n");
+        }
+        strbuf_append(csc2, "}\n");
+    }
+    outcsc2 = strdup(strbuf_buf(csc2));
+    strbuf_free(csc2);
+    return outcsc2;
+}
+
 int do_alter_table_shard(struct schema_change_type *s, struct ireq *iq,
                          int indx, int maxindx) 
 {
@@ -264,6 +407,62 @@ static void check_for_idx_rename(struct db *newdb, struct db *olddb)
     }
 }
 
+static int do_alter_table_common(struct schema_change_type *s, struct ireq *iq)
+{
+    int rc;
+    set_original_tablename(s);
+    int pre_is_temproal, post_is_temproal;
+    int defer_finalize = 0;
+    pre_is_temproal = post_is_temproal = 0;
+
+    if ((rc = mark_sc_in_llmeta(s)))
+        return rc;
+
+    if (rc == SC_OK)
+        rc = do_alter_table_int(s, iq);
+
+    if (master_downgrading(s))
+        return SC_MASTER_DOWNGRADE;
+
+    if (s->is_history == 0 && s->db && s->db->periods[PERIOD_SYSTEM].enable)
+        pre_is_temproal = 1;
+    if (s->is_history == 0 && s->newdb &&
+        s->newdb->periods[PERIOD_SYSTEM].enable)
+        post_is_temproal = 1;
+    if (pre_is_temproal || post_is_temproal) {
+        /* wait for history table */
+        defer_finalize = 1;
+        if (!pre_is_temproal && post_is_temproal)
+            s->add_history = 1;
+        else if (pre_is_temproal && !post_is_temproal)
+            s->drop_history = 1;
+        else
+            s->alter_history = 1;
+    }
+
+    if (rc) {
+        mark_schemachange_over(NULL, s->table);
+    } else if (s->finalize && !defer_finalize) {
+        if (s->type == DBTYPE_TAGGED_TABLE && !s->timepart_nshards) {
+            /* check for rename outside of taking schema lock */
+            /* handle renaming sqlite_stat1 entries for idx */
+            check_for_idx_rename(s->newdb, s->db);
+        }
+        wrlock_schema_lk();
+        rc = finalize_alter_table(s);
+        unlock_schema_lk();
+    } else {
+        rc = SC_COMMIT_PENDING;
+    }
+    return rc;
+}
+
+static int do_alter_history(struct schema_change_type *s, struct db *db,
+                            struct ireq *iq);
+static int do_drop_history(struct schema_change_type *s, struct db *db,
+                           struct ireq *iq);
+static int do_add_history(struct schema_change_type *s, struct db *db,
+                          struct ireq *iq);
 /* Schema change thread.  We must already have set the schema change running
  * flag and the seed in sc_seed. */
 static int do_alter_table(struct schema_change_type *s, struct ireq *iq)
@@ -271,7 +470,7 @@ static int do_alter_table(struct schema_change_type *s, struct ireq *iq)
 #ifdef DEBUG
     printf("do_alter_table() %s\n", s->resume?"resuming":"");
 #endif
-    int rc;
+    int rc, outrc;
 
     if (!s->resume)
         set_sc_flgs(s);
@@ -279,39 +478,121 @@ static int do_alter_table(struct schema_change_type *s, struct ireq *iq)
     if (!timepart_is_timepart(s->table, 1) &&
         /* resuming a stopped view sc */
         !(s->resume && timepart_is_shard(s->table, 1))) {
-        set_original_tablename(s);
-
-        if ((rc = mark_sc_in_llmeta(s)))
-            return rc;
-
-        propose_sc(s);
-
-        if (rc == SC_OK)
-            rc = do_alter_table_int(s, iq);
-
-        if (master_downgrading(s))
-            return SC_MASTER_DOWNGRADE;
-
-        if (rc) {
-            mark_schemachange_over(NULL, s->table);
-        } else if (s->finalize) {
-            if (s->type == DBTYPE_TAGGED_TABLE && !s->timepart_nshards) {
-                /* check for rename outside of taking schema lock */
-                /* handle renaming sqlite_stat1 entries for idx */
-                check_for_idx_rename(s->newdb, s->db);
+        outrc = rc = do_alter_table_common(s, iq);
+        if (rc != SC_OK && rc != SC_COMMIT_PENDING)
+            goto end;
+        if (s->add_history || s->drop_history || s->alter_history) {
+            if (s->add_history) {
+                /* add history table */
+                wrlock_schema_lk();
+                rc = do_add_history(s, s->newdb, iq);
+                unlock_schema_lk();
+                if (rc != SC_OK) {
+                    outrc = rc;
+                    goto end;
+                }
+            } else if (s->drop_history) {
+                /* drop history table */
+                wrlock_schema_lk();
+                rc = do_drop_history(s, s->db, iq);
+                unlock_schema_lk();
+                if (rc != SC_OK) {
+                    outrc = rc;
+                    goto end;
+                }
+            } else {
+                /* alter both current and history tables */
+                rc = do_alter_history(s, s->newdb, iq);
+                if (rc != SC_OK) {
+                    outrc = rc;
+                    goto end;
+                }
             }
-            wrlock_schema_lk();
-            rc = finalize_alter_table(s);
-            unlock_schema_lk();
-        } else {
-            rc = SC_COMMIT_PENDING;
+            if (s->finalize) {
+                if (s->type == DBTYPE_TAGGED_TABLE && !s->timepart_nshards) {
+                    /* check for rename outside of taking schema lock */
+                    /* handle renaming sqlite_stat1 entries for idx */
+                    check_for_idx_rename(s->newdb, s->db);
+                }
+                wrlock_schema_lk();
+                outrc = finalize_alter_table(s);
+                unlock_schema_lk();
+            }
         }
     } else {
-        rc = timepart_alter_timepart(s, iq, s->table, do_alter_table_shard);
+        outrc = timepart_alter_timepart(s, iq, s->table, do_alter_table_shard);
     }
 
+end:
     broadcast_sc_end(sc_seed);
-    return rc;
+    return outrc;
+}
+
+static inline int init_history_sc(struct schema_change_type *s, struct db *db,
+                                  struct schema_change_type *scopy)
+{
+    scopy->sb = s->sb;
+    scopy->must_close_sb = 0;
+    scopy->nothrevent = 1;
+    scopy->live = 1;
+    scopy->type = DBTYPE_TAGGED_TABLE;
+    scopy->finalize = 0;
+    if (strlen(db->dbname) + strlen("_history") + 1 > MAXTABLELEN) {
+        sc_errf(s, "History table name too long\n");
+        free_schema_change_type(scopy);
+        return SC_CSC2_ERROR;
+    }
+    snprintf(scopy->table, sizeof(scopy->table), "%s_history", db->dbname);
+    scopy->table[sizeof(scopy->table) - 1] = '\0';
+    if (scopy->newcsc2)
+        free(scopy->newcsc2);
+    scopy->newcsc2 = NULL;
+    scopy->headers = s->headers;
+    scopy->compress = s->compress;
+    scopy->compress_blobs = s->compress_blobs;
+    scopy->ip_updates = s->ip_updates;
+    scopy->instant_sc = s->instant_sc;
+    scopy->force_rebuild = s->force_rebuild;
+    scopy->force_dta_rebuild = s->force_dta_rebuild;
+    scopy->force_blob_rebuild = s->force_blob_rebuild;
+    scopy->is_history = 1;
+    scopy->orig_db = db;
+    s->history_s = scopy;
+
+    return 0;
+}
+
+static int do_alter_history(struct schema_change_type *s, struct db *db,
+                            struct ireq *iq)
+{
+    struct schema_change_type *scopy = new_schemachange_type();
+    if (init_history_sc(s, db, scopy)) {
+        if (iq)
+            reqerrstr(iq, ERR_SC, "History table name too long");
+        return SC_CSC2_ERROR;
+    }
+    scopy->alteronly = 1;
+    scopy->use_plan = 1;
+    scopy->scanmode = SCAN_PARALLEL;
+    scopy->newcsc2 = generate_history_csc2(db);
+
+    s->history_rc = do_alter_table_common(scopy, iq);
+    if (s->history_rc != SC_OK && s->history_rc != SC_COMMIT_PENDING) {
+        free_schema_change_type(scopy);
+        s->history_s = NULL;
+        if (iq)
+            reqerrstr(iq, ERR_SC, "Failed to alter history table");
+        sc_errf(s, "error altering history table\n");
+        logmsg(LOGMSG_ERROR, "%s failed with rc %d\n", __func__, s->history_rc);
+        return s->history_rc;
+    }
+
+    scopy->newdb->is_history_table = 1;
+    s->newdb->history_db = scopy->newdb;
+    scopy->newdb->orig_db = s->newdb;
+
+    sc_printf(s, "Alter history table %s ok\n", scopy->table);
+    return SC_OK;
 }
 
 int do_upgrade_table(struct schema_change_type *s)
@@ -339,65 +620,197 @@ int do_upgrade_table(struct schema_change_type *s)
     return rc;
 }
 
-int do_fastinit(struct schema_change_type *s)
+static inline int do_fastinit_common(struct schema_change_type *s,
+                                     struct ireq *iq)
 {
 #ifdef DEBUG
     printf("do_fastinit() %s\n", s->resume?"resuming":"");
 #endif
     int rc;
-
-    wrlock_schema_lk();
+    int defer_finalize = 0;
     set_original_tablename(s);
 
     if (!s->resume)
         set_sc_flgs(s);
 
     if ((rc = mark_sc_in_llmeta(s)))
-        goto end;
+        return rc;
 
     propose_sc(s);
-    rc = do_fastinit_int(s);
+    rc = do_fastinit_int(s, iq);
+
+    /* wait for history table */
+    if (s->is_history == 0 && s->db && s->db->periods[PERIOD_SYSTEM].enable) {
+        defer_finalize = 1;
+        s->drop_history = 1;
+    }
 
     if (rc) {
         mark_schemachange_over(NULL, s->table);
-    } else if (s->finalize) {
+    } else if (s->finalize && !defer_finalize) {
         rc = finalize_fastinit_table(s);
     } else {
         rc = SC_COMMIT_PENDING;
     }
+    return rc;
+}
+
+static int do_drop_history(struct schema_change_type *s, struct db *db,
+                           struct ireq *iq)
+{
+    struct schema_change_type *scopy = new_schemachange_type();
+    if (init_history_sc(s, db, scopy)) {
+        if (iq)
+            reqerrstr(iq, ERR_SC, "History table name too long");
+        return SC_CSC2_ERROR;
+    }
+    scopy->same_schema = 1;
+    scopy->drop_table = 1;
+    scopy->fastinit = 1;
+    if (get_csc2_file(scopy->table, -1, &scopy->newcsc2, NULL)) {
+        if (iq)
+            reqerrstr(iq, ERR_SC, "History table %s schema not found",
+                      scopy->table);
+        sc_errf(s, "History table %s schema not found\n", scopy->table);
+        free_schema_change_type(scopy);
+        return SC_CSC2_ERROR;
+    }
+
+    s->history_rc = do_fastinit_common(scopy, iq);
+    if (s->history_rc != SC_OK && s->history_rc != SC_COMMIT_PENDING) {
+        free_schema_change_type(scopy);
+        s->history_s = NULL;
+        if (iq)
+            reqerrstr(iq, ERR_SC, "Failed to delete history table");
+        sc_errf(s, "error deleting history table\n");
+        logmsg(LOGMSG_ERROR, "%s failed with rc %d\n", __func__, s->history_rc);
+        return s->history_rc;
+    }
+
+    sc_printf(s, "Drop history table %s ok\n", scopy->table);
+    return SC_OK;
+}
+
+int do_fastinit(struct schema_change_type *s, struct ireq *iq)
+{
+    int rc, outrc;
+
+    wrlock_schema_lk();
+
+    outrc = rc = do_fastinit_common(s, iq);
+    if (rc != SC_OK && rc != SC_COMMIT_PENDING)
+        goto end;
+
+    if (s->drop_history) {
+        if ((rc = do_drop_history(s, s->db, iq)) != SC_OK) {
+            outrc = rc;
+            goto end;
+        }
+        if (s->finalize) {
+            outrc = finalize_fastinit_table(s);
+            free_schema_change_type(s->history_s);
+            s->history_s = NULL;
+        }
+    }
+
 end:
     unlock_schema_lk();
     broadcast_sc_end(sc_seed);
 
-    return rc;
+    return outrc;
 }
 
-int do_add_table(struct schema_change_type *s, struct ireq *iq)
+static inline int do_add_table_common(struct schema_change_type *s,
+                                      struct ireq *iq)
 {
     int rc;
-
-    wrlock_schema_lk();
+    int defer_finalize = 0;
     set_original_tablename(s);
 
     if (!s->resume)
         set_sc_flgs(s);
-    if ((rc = mark_sc_in_llmeta(s)))
-        goto end;
-    
+    if ((rc = mark_sc_in_llmeta(s))) {
+        return rc;
+    }
+
     if (rc == SC_OK)
         rc = do_add_table_int(s, iq);
 
+    /* wait for history table */
+    if (s->is_history == 0 && s->db && s->db->periods[PERIOD_SYSTEM].enable) {
+        defer_finalize = 1;
+        s->add_history = 1;
+    }
+
     if (rc) {
         mark_schemachange_over(NULL, s->table);
-    } else if (s->finalize) {
+    } else if (s->finalize && !defer_finalize) {
         rc = finalize_add_table(s);
     } else {
         rc = SC_COMMIT_PENDING;
     }
+    return rc;
+}
+
+static int do_add_history(struct schema_change_type *s, struct db *db,
+                          struct ireq *iq)
+{
+    struct schema_change_type *scopy = new_schemachange_type();
+    if (init_history_sc(s, db, scopy)) {
+        if (iq)
+            reqerrstr(iq, ERR_SC, "History table name too long");
+        return SC_CSC2_ERROR;
+    }
+    scopy->addonly = 1;
+    scopy->newcsc2 = generate_history_csc2(db);
+
+    s->history_rc = do_add_table_common(scopy, iq);
+    if (s->history_rc != SC_OK && s->history_rc != SC_COMMIT_PENDING) {
+        free_schema_change_type(scopy);
+        s->history_s = NULL;
+        if (iq)
+            reqerrstr(iq, ERR_SC, "Failed to add history table");
+        sc_errf(s, "error adding history table\n");
+        logmsg(LOGMSG_ERROR, "%s failed with rc %d\n", __func__, s->history_rc);
+        return s->history_rc;
+    }
+
+    scopy->db->is_history_table = 1;
+    s->db->history_db = scopy->db;
+    scopy->db->orig_db = s->db;
+
+    sc_printf(s, "Add history table %s ok\n", scopy->table);
+    return SC_OK;
+}
+
+int do_add_table(struct schema_change_type *s, struct ireq *iq)
+{
+    int rc, outrc;
+
+    wrlock_schema_lk();
+
+    outrc = rc = do_add_table_common(s, iq);
+    if (rc != SC_OK && rc != SC_COMMIT_PENDING) {
+        goto end;
+    }
+
+    if (s->add_history) {
+        if ((rc = do_add_history(s, s->db, iq)) != SC_OK) {
+            outrc = rc;
+            goto end;
+        }
+        /* finalize current table */
+        if (s->finalize) {
+            outrc = finalize_add_table(s);
+            free_schema_change_type(s->history_s);
+            s->history_s = NULL;
+        }
+    }
+
 end:
     unlock_schema_lk();
 
-    return rc;
+    return outrc;
 }
 
 int do_alter_queues(struct schema_change_type *s)
@@ -478,7 +891,7 @@ int do_schema_change_thd(struct sc_arg *arg)
     else if (s->is_afunc)
         rc = do_lua_afunc(s);
     else if (s->fastinit)
-        rc = do_fastinit(s);
+        rc = do_fastinit(s, iq);
     else if (s->addonly)
         rc = do_add_table(s, iq);
     else if (s->fulluprecs || s->partialuprecs)
@@ -490,6 +903,14 @@ int do_schema_change_thd(struct sc_arg *arg)
     else if (s->type == DBTYPE_MORESTRIPE)
         rc = do_alter_stripes(s);
 
+    if (s->history_s) {
+        reset_sc_thread(oldtype, s->history_s);
+        if (s->history_rc != SC_COMMIT_PENDING) {
+            rc = s->history_rc;
+            stop_and_free_sc(s->history_rc, s->history_s);
+            s->history_s = NULL;
+        }
+    }
     reset_sc_thread(oldtype, s);
     if (rc != SC_COMMIT_PENDING && rc != SC_MASTER_DOWNGRADE)
         stop_and_free_sc(rc, s);
@@ -525,8 +946,11 @@ int finalize_schema_change_thd(struct schema_change_type *s)
         rc = finalize_upgrade_table(s);
     unlock_schema_lk();
 
+    if (s->history_s) {
+        free_schema_change_type(s->history_s);
+        s->history_s = NULL;
+    }
     reset_sc_thread(oldtype, s);
-
     stop_and_free_sc(rc, s);
     return rc;
 }

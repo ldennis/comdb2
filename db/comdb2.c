@@ -1756,6 +1756,7 @@ struct db *newdb_from_schema(struct dbenv *env, char *tblname, char *fname,
     }
     db->n_rev_constraints =
         0; /* this will be initialized at verification time */
+    db->n_rev_cascade_systime = 0;
     db->n_constraints = dyns_get_constraint_count();
     if (db->n_constraints > 0) {
         char *keyname = NULL;
@@ -5570,7 +5571,7 @@ int llmeta_dump_mapping_table_tran(void *tran, struct dbenv *dbenv,
 
     /* print the blobs' version numbers */
     for (i = 1; i <= p_db->numblobs; ++i) {
-        if (bdb_get_file_version_data(p_db->handle, NULL /*tran*/, i /*dtanum*/,
+        if (bdb_get_file_version_data(p_db->handle, tran /*tran*/, i /*dtanum*/,
                                       &version_num, &bdberr) ||
             bdberr != BDBERR_NOERROR) {
             if (err)
@@ -6518,6 +6519,27 @@ static void replace_args(int argc, char *argv[])
     }
 }
 
+/* set datetime global if directory exists */
+static void set_datetime_dir(void)
+{
+
+    struct stat st;
+    char *dir = comdb2_location("tzdata", "zoneinfo");
+
+    /* this is a stupid test to prevent running comdb2 that have no datetime
+       support
+       files; this only test for directory presence and access to it, nothing
+       else
+    */
+    if (stat(dir, &st)) {
+        free(dir);
+        logmsg(LOGMSG_FATAL, "This machine has no datetime support file;\n");
+        abort();
+    }
+
+    tz_set_dir(dir);
+}
+
 static int init(int argc, char **argv)
 {
     char *dbname, *lrlname = NULL, ctmp[64], *p;
@@ -6725,6 +6747,8 @@ static int init(int argc, char **argv)
     }
 
     init_file_locations(lrlname);
+
+    set_datetime_dir();
 
     if (gbl_create_mode && lrlname == NULL) {
        if (gbl_dbdir == NULL)
@@ -8092,26 +8116,6 @@ void create_stat_thread(struct dbenv *dbenv)
         logmsg(LOGMSG_FATAL, "pthread_create statthd rc %d\n", rc);
         abort();
     }
-}
-/* set datetime global if directory exists */
-static void set_datetime_dir(void)
-{
-
-    struct stat st;
-    char *dir = comdb2_location("tzdata", "zoneinfo");
-
-    /* this is a stupid test to prevent running comdb2 that have no datetime
-       support
-       files; this only test for directory presence and access to it, nothing
-       else
-    */
-    if (stat(dir, &st)) {
-        free(dir);
-        logmsg(LOGMSG_FATAL, "This machine has no datetime support file;\n");
-        abort();
-    }
-
-    tz_set_dir(dir);
 }
 
 static void iomap_on(void *p)

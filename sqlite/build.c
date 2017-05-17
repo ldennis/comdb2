@@ -1165,6 +1165,7 @@ void sqlite3StartTable(
       pTable->hasPartIdx = 0;
       pTable->hasExprIdx = 0;
   }
+  pTable->isHistory = 0;
   assert( pParse->pNewTable==0 );
   pParse->pNewTable = pTable;
 
@@ -1266,6 +1267,7 @@ void sqlite3ColumnPropertiesFromName(Table *pTab, Column *pCol){
 #endif
 }
 
+int is_comdb2_column_temporal(const char *dbname, const char *colname);
 /*
 ** Add a new column to the table currently being constructed.
 **
@@ -1327,6 +1329,11 @@ void sqlite3AddColumn(Parse *pParse, Token *pName, Token *pType){
     pCol->affinity = sqlite3AffinityType(zType, &pCol->szEst);
     pCol->colFlags |= COLFLAG_HASTYPE;
   }
+  pCol->colTime = is_comdb2_column_temporal(p->zName, pCol->zName);
+  /* COMDB2 MODIFICATION */
+  int is_comdb2_history_table(const char *dbname);
+  if( pCol->colTime && is_comdb2_history_table(p->zName) )
+    p->isHistory = 1;
   p->nCol++;
   pParse->constraintName.n = 0;
 }
@@ -2536,7 +2543,7 @@ int sqlite3ViewGetColumnNames(Parse *pParse, Table *pTable){
   if( pSel ){
     n = pParse->nTab;
     /* COMDB2 MODIFICATION */
-    sqlite3SrcListAssignCursors(pParse, pSel->pSrc, 0);
+    sqlite3SrcListAssignCursors(pParse, pSel->pSrc, 0, 0);
     pTable->nCol = -1;
     db->lookaside.bDisable++;
 #ifndef SQLITE_OMIT_AUTHORIZATION
@@ -2906,6 +2913,11 @@ void sqlite3DropTable(Parse *pParse, SrcList *pName, int isView, int noErr){
       goto exit_drop_table;
     }
 #endif
+  }
+  /* COMDB2 MODIFICATION */
+  if( pTab->isHistory ){
+    sqlite3ErrorMsg(pParse, "history table %s cannot be dropped", pTab->zName);
+    goto exit_drop_table;
   }
   if( sqlite3StrNICmp(pTab->zName, "sqlite_", 7)==0 
     && sqlite3StrNICmp(pTab->zName, "sqlite_stat", 11)!=0 ){
@@ -4147,8 +4159,13 @@ SrcList *sqlite3SrcListAppend(
 ** Assign VdbeCursor index numbers to all tables in a SrcList
 */
 /* COMDB2 MODIFICATION */
-void sqlite3SrcListAssignCursors(Parse *pParse, SrcList *pList, int is_recording){
-  int i;
+int sqlite3SrcListAssignCursors(
+  Parse *pParse,
+  SrcList *pList,
+  int is_recording,
+  Select *pSelect
+){
+  int i, rc;
   struct SrcList_item *pItem;
   assert(pList || pParse->db->mallocFailed );
   if( pList ){
@@ -4170,13 +4187,17 @@ void sqlite3SrcListAssignCursors(Parse *pParse, SrcList *pList, int is_recording
       }
       if( pItem->pSelect ){
         /* COMDB2 MODIFICATION */
-        sqlite3SrcListAssignCursors(pParse, pItem->pSelect->pSrc,
+        rc = sqlite3SrcListAssignCursors(pParse, pItem->pSelect->pSrc,
             is_recording ||
             pItem->pSelect->op == TK_SELECTV ||
-            pItem->pSelect->recording);
+            pItem->pSelect->recording,
+            pItem->pSelect);
+        if( rc != 0 )
+            return rc;
       }
     }
   }
+  return 0;
 }
 
 /*

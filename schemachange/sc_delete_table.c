@@ -20,7 +20,7 @@
 #include "autoanalyze.h"
 #include "logmsg.h"
 
-int delete_table(char *table)
+int delete_table_tran(char *table, void *tran)
 {
     struct db *db;
     int rc, bdberr;
@@ -40,8 +40,13 @@ int delete_table(char *table)
     delete_db(table);
     MEMORY_SYNC;
     delete_schema(table);
-    bdb_del_table_csonparameters(NULL, table);
+    bdb_del_table_csonparameters(tran, table);
     return 0;
+}
+
+int delete_table(char *table)
+{
+    return delete_table_tran(table, NULL);
 }
 
 static inline void set_implicit_options(struct schema_change_type *s,
@@ -59,7 +64,7 @@ static inline void set_implicit_options(struct schema_change_type *s,
         s->force_rebuild = 1;
 }
 
-int do_fastinit_int(struct schema_change_type *s)
+int do_fastinit_int(struct schema_change_type *s, struct ireq *iniq)
 {
     struct db *db;
     int rc;
@@ -80,8 +85,27 @@ int do_fastinit_int(struct schema_change_type *s)
         return SC_TABLE_DOESNOT_EXIST;
     }
     if (db->n_rev_constraints > 0) {
-        sc_errf(
-            s, "Fastinit not supported for tables with foreign constraints \n");
+        sc_errf(s,
+                "Fastinit not supported for tables with foreign constraints\n");
+        if (iniq)
+            reqerrstr(
+                iniq, ERR_SC,
+                "Fastinit not supported for tables with foreign constraints");
+        return -1;
+    }
+    if (!s->drop_table && (db->is_history_table || db->history_db)) {
+        sc_errf(s, "Fastinit not supported for temporal tables\n");
+        if (iniq)
+            reqerrstr(iniq, ERR_SC,
+                      "Fastinit not supported for temporal tables");
+        return -1;
+    }
+    if (!s->is_history && db->is_history_table) {
+        sc_errf(s, "Temporal history tables must be dropped with base table\n");
+        if (iniq)
+            reqerrstr(
+                iniq, ERR_SC,
+                "Temporal history tables must be dropped with base tables");
         return -1;
     }
 
@@ -99,8 +123,8 @@ int do_fastinit_int(struct schema_change_type *s)
     /*************************************************************************/
     extern int gbl_broken_max_rec_sz;
     int saved_broken_max_rec_sz = gbl_broken_max_rec_sz;
-    if(s->db->lrl > COMDB2_MAX_RECORD_SIZE) {
-        //we want to allow fastiniting and dropping this tbl
+    if (s->db->lrl > COMDB2_MAX_RECORD_SIZE) {
+        // we want to allow fastiniting and dropping this tbl
         gbl_broken_max_rec_sz = s->db->lrl - COMDB2_MAX_RECORD_SIZE;
     }
 
@@ -186,6 +210,161 @@ int do_fastinit_int(struct schema_change_type *s)
     return SC_OK;
 }
 
+int finalize_fastinit_table_prepare(struct schema_change_type *s, void *transac,
+                                    int *bdberr)
+{
+    int rc;
+    struct db *db = s->db;
+    struct db *newdb = s->newdb;
+    /* Before this handle is closed, lets wait for all the db reads to finish*/
+    bdb_lock_table_write(db->handle, transac);
+
+    /* close the newly created db as well */
+    if (s->same_schema || s->drop_table) {
+        rc = bdb_close_temp_state(newdb->handle, bdberr);
+        if (rc) {
+            sc_errf(s, "Failed closing new db handle, bdberr\n", *bdberr);
+            return -1;
+        } else
+            sc_printf(s, "Close new db ok\n");
+    }
+    return 0;
+}
+
+int finalize_fastinit_table_tran(struct schema_change_type *s, void *tran,
+                                 int olddb_bthashsz, int *bdberr)
+{
+    int rc;
+    struct db *db = s->db;
+    struct db *newdb = s->newdb;
+    rc = bdb_reset_csc2_version(tran, db->dbname, db->version);
+    if (rc != BDBERR_NOERROR)
+        return -1;
+
+    sc_printf(s, "Start version update transaction ok\n");
+
+    /* load new csc2 data */
+    rc = load_new_table_schema_tran(thedb, tran, s->table, s->newcsc2);
+    if (rc != 0) {
+        sc_errf(s, "Error loading new schema into meta tables, "
+                   "trying again\n");
+        return -1;
+    }
+
+    if ((rc = set_header_and_properties(tran, newdb, s, 1, olddb_bthashsz)))
+        return -1;
+
+    /*set all metapointers to new files*/
+    rc = bdb_commit_temp_file_version_all(newdb->handle, tran, bdberr);
+    if (rc)
+        return -1;
+
+    /* delete any new file versions this table has */
+    if (bdb_del_file_versions(newdb->handle, tran, bdberr) ||
+        *bdberr != BDBERR_NOERROR) {
+        sc_errf(s, "%s: bdb_del_file_versions failed\n", __func__);
+        return -1;
+    }
+
+    if ((rc = mark_schemachange_over(tran, db->dbname)))
+        return -1;
+
+    return 0;
+}
+
+int finalize_fastinit_table_drop(struct schema_change_type *s, void *transac,
+                                 int *bdberr)
+{
+    int rc;
+    struct db *db = s->db;
+    struct db *history_db = s->history_s ? s->history_s->db : NULL;
+    delete_table_tran(db->dbname, transac);
+    if (history_db)
+        delete_table_tran(history_db->dbname, transac);
+    bdb_reset_csc2_version(transac, db->dbname, db->version);
+    if (history_db)
+        bdb_reset_csc2_version(transac, history_db->dbname,
+                               history_db->version);
+
+    rc = bdb_del(db->handle, transac, bdberr);
+    if (rc) {
+        sc_errf(s, "%s: bdb_del failed with rc: %d bdberr: %d\n", __func__, rc,
+                *bdberr);
+        return -1;
+    }
+    if (history_db) {
+        rc = bdb_del(history_db->handle, transac, bdberr);
+        if (rc) {
+            sc_errf(s, "%s: bdb_del failed with rc: %d bdberr: %d\n", __func__,
+                    rc, *bdberr);
+            return -1;
+        }
+    }
+    rc = bdb_del_file_versions(db->handle, transac, bdberr);
+    if (rc) {
+        sc_errf(s, "%s: bdb_del_file_versions failed with rc: %d bdberr: "
+                   "%d\n",
+                __func__, rc, *bdberr);
+        return -1;
+    }
+    if (history_db) {
+        rc = bdb_del_file_versions(history_db->handle, transac, bdberr);
+        if (rc) {
+            sc_errf(s, "%s: bdb_del_file_versions failed with rc: %d bdberr: "
+                       "%d\n",
+                    __func__, rc, *bdberr);
+            return -1;
+        }
+    }
+    rc = table_version_upsert(db, transac, bdberr);
+    if (rc) {
+        sc_errf(s, "Failed updating table version bdberr %d\n", bdberr);
+        return -1;
+    }
+    if (history_db) {
+        rc = table_version_upsert(history_db, transac, bdberr);
+        if (rc) {
+            sc_errf(s, "Failed updating table version bdberr %d\n", bdberr);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+void finalize_fastinit_table_drop_done(struct schema_change_type *s)
+{
+    struct db *db = s->db;
+    assert(db && s->drop_table);
+    live_sc_off(db);
+
+    if (!gbl_create_mode) {
+        logmsg(LOGMSG_INFO, "Table %s is at version: %d\n", db->dbname,
+               db->version);
+    }
+    llmeta_dump_mapping_table(thedb, db->dbname, 1);
+
+    if (gbl_replicate_local) {
+        local_replicant_write_clear(db);
+    }
+
+    sc_del_unused_files(db);
+}
+
+int finalize_fastinit_table_backout(struct schema_change_type *s, int *bdberr)
+{
+    int rc;
+    struct db *db = s->db;
+    struct db *newdb = s->newdb;
+    delete_temp_table(s, newdb);
+    change_schemas_recover(s->table);
+    rc = bdb_open_again(db->handle, bdberr);
+    if (rc) {
+        sc_errf(s, "Failed reopening db, bdberr %d\n", *bdberr);
+        return -1;
+    }
+    return 0;
+}
+
 int finalize_fastinit_table(struct schema_change_type *s)
 {
     int dbnum, newdbnum;
@@ -202,6 +381,7 @@ int finalize_fastinit_table(struct schema_change_type *s)
     int is_sqlite =
         strncmp((s->table), "sqlite_stat", sizeof("sqlite_stat") - 1) == 0;
     int olddb_bthashsz;
+    struct schema_change_type *history_s = NULL;
 
     init_fake_ireq(thedb, &iq);
     iq.usedb = db;
@@ -215,33 +395,29 @@ int finalize_fastinit_table(struct schema_change_type *s)
         trans_start_sc(&iq, NULL, &transac);
     }
 
-    /* Before this handle is closed, lets wait for all the db reads to finish*/
-    bdb_lock_table_write(db->handle, transac);
-
     /* From this point on failures should goto either backout if recoverable
      * or failure if unrecoverable */
     tran = NULL;
 
-    /* close the newly created db as well */
-    if (s->same_schema || s->drop_table) {
-        rc = bdb_close_temp_state(newdb->handle, &bdberr);
-        if (rc) {
-            sc_errf(s, "Failed closing new db handle, bdberr\n", bdberr);
+    rc = finalize_fastinit_table_prepare(s, transac, &bdberr);
+    if (rc)
+        goto backout;
+    if (s->history_s) {
+        assert(s->drop_table);
+        history_s = s->history_s;
+        rc = finalize_fastinit_table_prepare(history_s, transac, &bdberr);
+        if (rc)
             goto backout;
-        } else
-            sc_printf(s, "Close new db ok\n");
     }
-
-    newdb->meta = db->meta;
 
     /* at this point if a backup is going on, it will be bad */
     gbl_sc_commit_count++;
 
-    /*
-       at this point we've closed the old table and closed the new table.
-       now we do the file manipulation portion.  we do this by updating ll
-       pointers to files.
-    */
+/*
+   at this point we've closed the old table and closed the new table.
+   now we do the file manipulation portion.  we do this by updating ll
+   pointers to files.
+*/
 
 retry_fastinit:
 
@@ -266,38 +442,15 @@ retry_fastinit:
         goto retry_fastinit;
     }
 
-    /*Now that we don't have any data, please clear unwanted schemas.*/
-    bdberr = bdb_reset_csc2_version(tran, db->dbname, db->version);
-    if (bdberr != BDBERR_NOERROR)
-        goto retry_fastinit;
-
-    sc_printf(s, "Start version update transaction ok\n");
-
-    /* load new csc2 data */
-    rc = load_new_table_schema_tran(thedb, tran, s->table, s->newcsc2);
-    if (rc != 0) {
-        sc_errf(s, "Error loading new schema into meta tables, "
-                   "trying again\n");
-        goto retry_fastinit;
-    }
-
-    if ((rc = set_header_and_properties(tran, newdb, s, 1, olddb_bthashsz)))
-        goto retry_fastinit;
-
-    /*set all metapointers to new files*/
-    rc = bdb_commit_temp_file_version_all(newdb->handle, tran, &bdberr);
+    rc = finalize_fastinit_table_tran(s, tran, olddb_bthashsz, &bdberr);
     if (rc)
         goto retry_fastinit;
-
-    /* delete any new file versions this table has */
-    if (bdb_del_file_versions(newdb->handle, tran, &bdberr) ||
-        bdberr != BDBERR_NOERROR) {
-        sc_errf(s, "%s: bdb_del_file_versions failed\n", __func__);
-        goto retry_fastinit;
+    if (history_s) {
+        rc = finalize_fastinit_table_tran(history_s, tran, olddb_bthashsz,
+                                          &bdberr);
+        if (rc)
+            goto retry_fastinit;
     }
-
-    if ((rc = mark_schemachange_over(tran, db->dbname)))
-        goto retry_fastinit;
 
     rc = trans_commit_adaptive(&iq, tran, gbl_mynode);
     if (rc) {
@@ -316,6 +469,11 @@ retry_fastinit:
 
     newdb->plan = NULL;
 
+    if (history_s) {
+        bdb_remove_prefix(history_s->newdb->handle);
+        history_s->newdb->plan = NULL;
+    }
+
     if (s->drop_table) {
         /* drop table */
         /*
@@ -326,27 +484,15 @@ retry_fastinit:
         }
         */
 
-        delete_table(db->dbname);
-        bdb_reset_csc2_version(transac, db->dbname, db->version);
-        if ((rc = bdb_del(db->handle, transac, &bdberr))) {
-            sc_errf(s, "%s: bdb_del failed with rc: %d bdberr: %d\n", __func__,
-                    rc, bdberr);
+        rc = finalize_fastinit_table_drop(s, transac, &bdberr);
+        if (rc)
             goto failed;
-        } else if ((rc = bdb_del_file_versions(db->handle, transac, &bdberr))) {
-            sc_errf(s, "%s: bdb_del_file_versions failed with rc: %d bdberr: "
-                       "%d\n",
-                    __func__, rc, bdberr);
-            goto failed;
-        }
-        if (table_version_upsert(db, transac, &bdberr)) {
-            sc_errf(s, "Failed updating table version bdberr %d\n", bdberr);
-            goto failed;
-        }
         if (llmeta_set_tables(transac, thedb)) {
             sc_errf(s, "Failed to set table names in low level meta\n");
             goto failed;
         }
     } else {
+        assert(history_s == NULL);
 
         new_bdb_handle = newdb->handle;
         old_bdb_handle = db->handle;
@@ -425,27 +571,27 @@ retry_fastinit:
          */
     }
 
-    live_sc_off(db);
-
-    if (!s->drop_table) /* We already deleted all the schemas. */
+    if (s->drop_table) {
+        finalize_fastinit_table_drop_done(s);
+        if (history_s)
+            finalize_fastinit_table_drop_done(history_s);
+    } else {
+        assert(history_s == NULL);
+        live_sc_off(db);
         update_dbstore(db);
-
-    if (!gbl_create_mode) {
-        logmsg(LOGMSG_INFO, "Table %s is at version: %d\n", db->dbname, db->version);
+        if (!gbl_create_mode) {
+            logmsg(LOGMSG_INFO, "Table %s is at version: %d\n", db->dbname,
+                   db->version);
+        }
+        llmeta_dump_mapping_table(thedb, db->dbname, 1);
+        if (gbl_replicate_local) {
+            local_replicant_write_clear(db);
+        }
+        sc_del_unused_files(newdb);
     }
 
-    llmeta_dump_mapping_table(thedb, db->dbname, 1);
-
-    if (gbl_replicate_local)
-        local_replicant_write_clear(db);
-
-    /* delete files we don't need now */
-    if (s->drop_table)
-        sc_del_unused_files(db);
-    else
-        sc_del_unused_files(newdb);
-
     if (got_new_handle) {
+        assert(history_s == NULL);
         int newdbnum;
         /* we are about to free new_bdb_handle: make sure it isn't in the
          * bdb_state->children array */
@@ -474,6 +620,7 @@ backout:
         if (rc)
             sc_errf(s, "%s:trans_abort rc %d\n", __func__, rc);
     }
+    transac = NULL;
 
     if (tran) {
         rc = trans_abort(&iq, tran);
@@ -481,13 +628,14 @@ backout:
             sc_errf(s, "%s:trans_abort rc %d\n", __func__, rc);
     }
 
-    delete_temp_table(s, newdb);
-    change_schemas_recover(s->table);
-
-    rc = bdb_open_again(db->handle, &bdberr);
-    if (rc) {
-        sc_errf(s, "Failed reopening db, bdberr %d\n", bdberr);
+    rc = finalize_fastinit_table_backout(s, &bdberr);
+    if (rc)
         goto failed;
+
+    if (history_s) {
+        rc = finalize_fastinit_table_backout(history_s, &bdberr);
+        if (rc)
+            goto failed;
     }
 
     if (got_new_handle) {

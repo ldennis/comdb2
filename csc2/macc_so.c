@@ -117,6 +117,114 @@ void end_constraint_list(void)
     nconstraints++;
 }
 
+int dyns_get_period(int period, int *start, int *end)
+{
+    if (nperiods <= 0)
+        return 0;
+    if (period >= PERIOD_MAX)
+        return -1;
+    if (!periods[period].enable)
+        return 0;
+    *start = periods[period].start;
+    *end = periods[period].end;
+    return 0;
+}
+
+void start_periods_list(void)
+{
+    int i;
+    for (i = 0; i < PERIOD_MAX; i++) {
+        periods[i].enable = 0;
+        periods[i].start = -1;
+        periods[i].end = -1;
+    }
+}
+
+int getsymbol(char *tabletag, char *nm, int *tblidx);
+void add_period(char *name, char *start, char *end)
+{
+    int period_type = PERIOD_MAX;
+    int i, tidx = 0;
+    char *tag;
+    if (strcasecmp(name, "SYSTEM") == 0)
+        period_type = PERIOD_SYSTEM;
+    else if (strcasecmp(name, "BUSINESS") == 0)
+        period_type = PERIOD_BUSINESS;
+    if (period_type < PERIOD_MAX) {
+        if (periods[period_type].enable) {
+            csc2_error("Error at line %3d: DUPLICATE PERIOD: %s.\n",
+                       current_line, name);
+            csc2_syntax_error("Error at line %3d: DUPLICATE PERIOD: %s.",
+                              current_line, name);
+            any_errors++;
+            return;
+        }
+
+        strlower(start, strlen(start));
+        tag = ONDISKTAG;
+        i = getsymbol(tag, start, &tidx);
+        if (i == -1) {
+            tag = (ntables > 1) ? ONDISKTAG : DEFAULTTAG;
+            i = getsymbol(tag, start, &tidx);
+        }
+        if (i == -1) {
+            csc2_error("Error at line %3d: SYMBOL NOT FOUND: %s.\n",
+                       current_line, start);
+            csc2_syntax_error("Error at line %3d: SYMBOL NOT FOUND: %s.",
+                              current_line, start);
+            csc2_error("IF IN MULTI-TABLE MODE MAKE SURE %s TAG IS DEFINED\n",
+                       ONDISKTAG);
+            any_errors++;
+            return;
+        } else if (tables[tidx].sym[i].type != T_DATETIMEUS) {
+            csc2_error("Error at line %3d: BAD PERIOD START: %s\n",
+                    current_line, start);
+            csc2_syntax_error("Error at line %3d: BAD PERIOD START: %s",
+                              current_line, start);
+            any_errors++;
+            return;
+        } else {
+            periods[period_type].start = i;
+        }
+
+        strlower(end, strlen(end));
+        tag = ONDISKTAG;
+        i = getsymbol(tag, end, &tidx);
+        if (i == -1) {
+            tag = (ntables > 1) ? ONDISKTAG : DEFAULTTAG;
+            i = getsymbol(tag, end, &tidx);
+        }
+        if (i == -1) {
+            csc2_error("Error at line %3d: SYMBOL NOT FOUND: %s.\n",
+                       current_line, end);
+            csc2_syntax_error("Error at line %3d: SYMBOL NOT FOUND: %s.",
+                              current_line, end);
+            csc2_error("IF IN MULTI-TABLE MODE MAKE SURE %s TAG IS DEFINED\n",
+                       ONDISKTAG);
+            any_errors++;
+            return;
+        } else if (tables[tidx].sym[i].type != T_DATETIMEUS) {
+            csc2_error("Error at line %3d: BAD PERIOD END: %s\n",
+                       current_line, end);
+            csc2_syntax_error("Error at line %3d: BAD PERIOD END: %s",
+                              current_line, end);
+            any_errors++;
+            return;
+        } else {
+            periods[period_type].end = i;
+        }
+        periods[period_type].enable = 1;
+        nperiods++;
+    } else {
+        csc2_error("Error at line %3d: UNKNOWN PERIOD: %s.\n",
+                   current_line, name);
+        csc2_syntax_error("Error at line %3d: UNKNOWN PERIOD: %s.",
+                          current_line, name);
+        any_errors++;
+        return;
+    }
+}
+
 void add_constraint(char *tbl, char *key)
 {
     int cidx = constraints[nconstraints].ncnstrts;
@@ -132,6 +240,22 @@ void add_constraint(char *tbl, char *key)
     constraints[nconstraints].keynm[cidx] = key;
     /*  fprintf(stderr, "constraint: tbl %s key %s %d\n",
      * tbl,key,nconstraints);*/
+}
+
+void add_no_overlap_constraint(char *from, char *to)
+{
+    int cidx = constraints[nconstraints].ncnstrts;
+    if (cidx >= MAXCNSTRTS) {
+        csc2_error(
+            "ERROR: TOO MANY RULES SPECIFIED IN CONSTRAINT TBL: %s. MAX %d\n",
+            constraints[nconstraints].lclkey, MAXCNSTRTS);
+        any_errors++;
+        return;
+    }
+    constraints[nconstraints].flags = CT_NO_OVERLAP;
+    constraints[nconstraints].ncnstrts++;
+    constraints[nconstraints].table[cidx] = from; /* use table to save from */
+    constraints[nconstraints].keynm[cidx] = to; /* use keynm to save to */
 }
 
 int constant(char *var)
@@ -361,9 +485,9 @@ int check_options() /* CHECK VALIDITY OF OPTIONS      */
                 break;
             }
             if (numdim(tables[jj].sym[ii].dim) > 0) {
-                fprintf(stderr, "Record \"%s\" has ARRAY fields. SQL does not "
-                                "support this currently.\n",
-                        tables[jj].table_tag);
+                csc2_error("Record \"%s\" has ARRAY fields. SQL does not "
+                           "support this currently.\n",
+                           tables[jj].table_tag);
                 any_errors++;
                 break;
             }

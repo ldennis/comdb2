@@ -42,6 +42,7 @@ void init_schemachange_type(struct schema_change_type *sc)
     sc->dbnum = -1; /* -1 = not changing, anything else = set value */
     sc->original_master_node[0] = 0;
     listc_init(&sc->dests, offsetof(struct dest, lnk));
+    sc->is_history = 0;
 }
 
 struct schema_change_type *new_schemachange_type()
@@ -52,6 +53,25 @@ struct schema_change_type *new_schemachange_type()
         init_schemachange_type(sc);
 
     return sc;
+}
+
+void deep_copy_schemachange_type(struct schema_change_type *des,
+                                 struct schema_change_type *src)
+{
+    struct dest *destent;
+    struct dest *d;
+    memcpy(des, src, sizeof(struct schema_change_type));
+    if (src->newcsc2)
+        des->newcsc2 = strdup(src->newcsc2);
+    listc_init(&des->dests, offsetof(struct dest, lnk));
+    LISTC_FOR_EACH(&src->dests, destent, lnk)
+    {
+        struct dest *d = malloc(sizeof(struct dest));
+        d->dest = strdup(destent->dest);
+        listc_abl(&des->dests, d);
+    }
+    des->db = des->newdb = NULL;
+    des->timepart_dbs = des->timepart_newdbs = NULL;
 }
 
 void cleanup_strptr(char **schemabuf)

@@ -2368,20 +2368,13 @@ retry:
                     fnddta, maxlen, fndlen, fndkey, fndrrn, genid, numblobs,
                     blobns, blobsizes, bloboffs, blobptrs, args, &bdberr);
                 iq->gluewhere = "bdb_fetch_next_blobs_genid done";
-            } else if (trans) {
-                iq->gluewhere = req = "bdb_fetch_next_genid";
+            } else {
+                iq->gluewhere = req = "bdb_fetch_next_genid_tran";
                 ixrc = bdb_fetch_next_genid_tran(
                     bdb_handle, key, ixnum, keylen, curlast, lastrrn, lastgenid,
                     fnddta, maxlen, fndlen, fndkey, fndrrn, genid, trans, args,
                     &bdberr);
-                iq->gluewhere = "bdb_fetch_next_genid done";
-            } else {
-                iq->gluewhere = req = "bdb_fetch_next_genid";
-                ixrc = bdb_fetch_next_genid(bdb_handle, key, ixnum, keylen,
-                                            curlast, lastrrn, lastgenid, fnddta,
-                                            maxlen, fndlen, fndkey, fndrrn,
-                                            genid, args, &bdberr);
-                iq->gluewhere = "bdb_fetch_next_genid done";
+                iq->gluewhere = "bdb_fetch_next_genid_tran done";
             }
         } else if (cur_ser) {
             iq->gluewhere = req = "bdb_fetch_next_genid_nl_ser";
@@ -2405,11 +2398,11 @@ retry:
             fndrrn, genid, cur_ser, args, &bdberr);
         iq->gluewhere = "bdb_fetch_next_nodta_genid_nl_ser done";
     } else {
-        iq->gluewhere = req = "bdb_fetch_next_nodta_genid";
-        ixrc = bdb_fetch_next_nodta_genid(bdb_handle, key, ixnum, keylen,
-                                          curlast, lastrrn, lastgenid, fndkey,
-                                          fndrrn, genid, args, &bdberr);
-        iq->gluewhere = "bdb_fetch_next_nodta_genid done";
+        iq->gluewhere = req = "bdb_fetch_next_nodta_genid_tran";
+        ixrc = bdb_fetch_next_nodta_genid_tran(
+            bdb_handle, key, ixnum, keylen, curlast, lastrrn, lastgenid, fndkey,
+            fndrrn, genid, trans, args, &bdberr);
+        iq->gluewhere = "bdb_fetch_next_nodta_genid_tran done";
     }
     if (ixrc == -1) {
         if (bdberr == BDBERR_DEADLOCK) {
@@ -2526,6 +2519,17 @@ int ix_next(struct ireq *iq, int ixnum, void *key, int keylen, void *last,
                        0, NULL, NULL, NULL, NULL, NULL, context, NULL, NULL);
 }
 
+int ix_next_trans(struct ireq *iq, void *trans, int ixnum, void *key,
+                  int keylen, void *last, int lastrrn,
+                  unsigned long long lastgenid, void *fndkey, int *fndrrn,
+                  unsigned long long *genid, void *fnddta, int *fndlen,
+                  int maxlen, unsigned long long context)
+{
+    return ix_next_int(AUXDB_NONE, 1, iq, ixnum, key, keylen, last, lastrrn,
+                       lastgenid, fndkey, fndrrn, genid, fnddta, fndlen, maxlen,
+                       0, NULL, NULL, NULL, NULL, NULL, context, trans, NULL);
+}
+
 int ix_next_nl_ser_flags(struct ireq *iq, int ixnum, void *key, int keylen,
                          void *last, int lastrrn, unsigned long long lastgenid,
                          void *fndkey, int *fndrrn, unsigned long long *genid,
@@ -2564,24 +2568,13 @@ int ix_next_nl(struct ireq *iq, int ixnum, void *key, int keylen, void *last,
                        0, NULL, NULL, NULL, NULL, NULL, context, NULL, NULL);
 }
 
-int ix_next_trans(struct ireq *iq, void *trans, int ixnum, void *key,
-                  int keylen, void *last, int lastrrn,
-                  unsigned long long lastgenid, void *fndkey, int *fndrrn,
-                  unsigned long long *genid, void *fnddta, int *fndlen,
-                  int maxlen, unsigned long long context)
-{
-    return ix_next_int(AUXDB_NONE, 1, iq, ixnum, key, keylen, last, lastrrn,
-                       lastgenid, fndkey, fndrrn, genid, fnddta, fndlen, maxlen,
-                       0, NULL, NULL, NULL, NULL, NULL, context, trans, NULL);
-}
-
 static int ix_prev_int(int auxdb, int lookahead, struct ireq *iq, int ixnum,
                        void *key, int keylen, void *last, int lastrrn,
                        unsigned long long lastgenid, void *fndkey, int *fndrrn,
                        unsigned long long *genid, void *fnddta, int *fndlen,
                        int maxlen, int numblobs, int *blobnums,
                        size_t *blobsizes, size_t *bloboffs, void **blobptrs,
-                       int *retries, unsigned long long context,
+                       int *retries, unsigned long long context, void *trans,
                        bdb_cursor_ser_t *cur_ser)
 {
     struct db *db = iq->usedb;
@@ -2626,12 +2619,12 @@ retry:
                     blobns, blobsizes, bloboffs, blobptrs, &args, &bdberr);
                 iq->gluewhere = "bdb_fetch_prev_blobs_genid done";
             } else {
-                iq->gluewhere = req = "bdb_fetch_prev_genid";
-                ixrc = bdb_fetch_prev_genid(bdb_handle, key, ixnum, keylen,
-                                            curlast, lastrrn, lastgenid, fnddta,
-                                            maxlen, fndlen, fndkey, fndrrn,
-                                            genid, &args, &bdberr);
-                iq->gluewhere = "bdb_fetch_prev_genid done";
+                iq->gluewhere = req = "bdb_fetch_prev_genid_tran";
+                ixrc = bdb_fetch_prev_genid_tran(
+                    bdb_handle, key, ixnum, keylen, curlast, lastrrn, lastgenid,
+                    fnddta, maxlen, fndlen, fndkey, fndrrn, genid, trans, &args,
+                    &bdberr);
+                iq->gluewhere = "bdb_fetch_prev_genid_tran done";
             }
         } else if (cur_ser) {
             iq->gluewhere = req = "bdb_fetch_prev_genid_nl_ser";
@@ -2655,14 +2648,17 @@ retry:
             fndrrn, genid, cur_ser, &args, &bdberr);
         iq->gluewhere = "bdb_fetch_prev_nodta_genid_nl_ser done";
     } else {
-        iq->gluewhere = req = "bdb_fetch_prev_nodta_genid";
-        ixrc = bdb_fetch_prev_nodta_genid(bdb_handle, key, ixnum, keylen,
-                                          curlast, lastrrn, lastgenid, fndkey,
-                                          fndrrn, genid, &args, &bdberr);
-        iq->gluewhere = "bdb_fetch_prev_nodta_genid done";
+        iq->gluewhere = req = "bdb_fetch_prev_nodta_genid_tran";
+        ixrc = bdb_fetch_prev_nodta_genid_tran(
+            bdb_handle, key, ixnum, keylen, curlast, lastrrn, lastgenid, fndkey,
+            fndrrn, genid, trans, &args, &bdberr);
+        iq->gluewhere = "bdb_fetch_prev_nodta_genid_tran done";
     }
     if (ixrc == -1) {
         if (bdberr == BDBERR_DEADLOCK) {
+            if (trans)
+                return RC_INTERNAL_RETRY;
+
             iq->retries++;
             if (++(*retries) < gbl_maxretries) {
                 n_retries++;
@@ -2741,7 +2737,7 @@ int ix_prev_blobs_auxdb(int auxdb, int lookahead, struct ireq *iq, int ixnum,
     return ix_prev_int(auxdb, lookahead, iq, ixnum, key, keylen, last, lastrrn,
                        lastgenid, fndkey, fndrrn, genid, fnddta, fndlen, maxlen,
                        numblobs, blobnums, blobsizes, bloboffs, blobptrs,
-                       retries, context, NULL);
+                       retries, context, NULL, NULL);
 }
 
 int ix_prev(struct ireq *iq, int ixnum, void *key, int keylen, void *last,
@@ -2749,9 +2745,20 @@ int ix_prev(struct ireq *iq, int ixnum, void *key, int keylen, void *last,
             int *fndrrn, unsigned long long *genid, void *fnddta, int *fndlen,
             int maxlen, unsigned long long context)
 {
-    return ix_prev_auxdb(AUXDB_NONE, 1, iq, ixnum, key, keylen, last, lastrrn,
-                         lastgenid, fndkey, fndrrn, genid, fnddta, fndlen,
-                         maxlen, context);
+    return ix_prev_int(AUXDB_NONE, 1, iq, ixnum, key, keylen, last, lastrrn,
+                       lastgenid, fndkey, fndrrn, genid, fnddta, fndlen, maxlen,
+                       0, NULL, NULL, NULL, NULL, NULL, context, NULL, NULL);
+}
+
+int ix_prev_trans(struct ireq *iq, void *trans, int ixnum, void *key,
+                  int keylen, void *last, int lastrrn,
+                  unsigned long long lastgenid, void *fndkey, int *fndrrn,
+                  unsigned long long *genid, void *fnddta, int *fndlen,
+                  int maxlen, unsigned long long context)
+{
+    return ix_prev_int(AUXDB_NONE, 1, iq, ixnum, key, keylen, last, lastrrn,
+                       lastgenid, fndkey, fndrrn, genid, fnddta, fndlen, maxlen,
+                       0, NULL, NULL, NULL, NULL, NULL, context, trans, NULL);
 }
 
 int ix_prev_nl_ser(struct ireq *iq, int ixnum, void *key, int keylen,
@@ -2762,7 +2769,7 @@ int ix_prev_nl_ser(struct ireq *iq, int ixnum, void *key, int keylen,
 {
     return ix_prev_int(AUXDB_NONE, 0, iq, ixnum, key, keylen, last, lastrrn,
                        lastgenid, fndkey, fndrrn, genid, fnddta, fndlen, maxlen,
-                       0, NULL, NULL, NULL, NULL, NULL, context, cur_ser);
+                       0, NULL, NULL, NULL, NULL, NULL, context, NULL, cur_ser);
 }
 
 int ix_prev_nl(struct ireq *iq, int ixnum, void *key, int keylen, void *last,
@@ -4129,6 +4136,24 @@ int backend_open(struct dbenv *dbenv)
                    dbenv->basedir, db->dbname, bdberr);
             return -1;
         }
+
+        if (db->periods[PERIOD_SYSTEM].enable) {
+            char tmpname[MAXTABLELEN];
+            struct db *history_db = NULL;
+            snprintf(tmpname, sizeof(tmpname), "%s_history", db->dbname);
+            history_db = getdbbyname(tmpname);
+            if (!history_db) {
+                logmsg(LOGMSG_ERROR, "%s: failed to locate history table %s\n",
+                       __func__, tmpname);
+                return -1;
+            }
+            db->history_db = history_db;
+            history_db->is_history_table = 1;
+            history_db->orig_db = db;
+            logmsg(LOGMSG_INFO,
+                   "'%s' is temporal table and history table is '%s'\n",
+                   db->dbname, history_db->dbname);
+        }
     }
     /* open queues */
     for (ii = 0; ii < dbenv->num_qdbs; ii++) {
@@ -4207,6 +4232,11 @@ int backend_open(struct dbenv *dbenv)
                 logmsg(LOGMSG_ERROR, "save odh to llmeta failed\n");
                 return -1;
             }
+            if ((d->periods[PERIOD_SYSTEM].enable || d->is_history_table) &&
+                put_db_start_time(d, NULL)) {
+                logmsg(LOGMSG_ERROR, "failed to put db start time\n");
+                return -1;
+            }
             if (gbl_init_with_bthash &&
                 put_db_bthash(d, NULL, gbl_init_with_bthash) != 0) {
                 logmsg(LOGMSG_ERROR, "save bthash size to llmeta failed\n");
@@ -4219,6 +4249,7 @@ int backend_open(struct dbenv *dbenv)
                 logmsg(LOGMSG_ERROR, "fetch odh from llmeta failed\n");
                 return -1;
             }
+            get_db_start_time(d, &d->tstart);
 
             if (get_db_bthash(d, &bthashsz) != 0) {
                 bthashsz = 0;
@@ -4824,6 +4855,37 @@ int get_db_bthash(struct db *db, int *bthashsz)
     int n_bthashsz = 0;
     rc = meta_get(db, &hdr, (void *)&n_bthashsz, sizeof(n_bthashsz));
     *bthashsz = ntohl(n_bthashsz);
+    return rc;
+}
+
+int put_db_start_time(struct db *db, void *tran)
+{
+    struct metahdr hdr;
+    int rc;
+    struct timespec *ts;
+    hdr.rrn = META_START_TIME;
+    hdr.attr = 0;
+
+    ts = alloca(sizeof(struct timespec));
+    clock_gettime(CLOCK_REALTIME, ts);
+    memcpy(&db->tstart, ts, sizeof(struct timespec));
+
+    ts->tv_sec = flibc_htonll(ts->tv_sec);
+    ts->tv_nsec = flibc_htonll(ts->tv_nsec);
+
+    rc = meta_put(db, tran, &hdr, (void *)ts, sizeof(struct timespec));
+    return rc;
+}
+
+int get_db_start_time(struct db *db, struct timespec *ts)
+{
+    struct metahdr hdr;
+    int rc;
+    hdr.rrn = META_START_TIME;
+    hdr.attr = 0;
+    rc = meta_get(db, &hdr, (void *)ts, sizeof(struct timespec));
+    ts->tv_sec = flibc_ntohll(ts->tv_sec);
+    ts->tv_nsec = flibc_ntohll(ts->tv_nsec);
     return rc;
 }
 
