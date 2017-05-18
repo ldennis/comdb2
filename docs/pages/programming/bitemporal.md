@@ -8,6 +8,7 @@ permalink: bitemporal.html
 One of the main features introduced in SQL:2011 was "SQL Support for Time-Related Information".
 
 In *ISO/IEC TR 19075-2:2015*, it defines three different types of time-related tables:
+
 * System-Versioned Tables (with system versioning period)
 * Application/Business-Versioned Table (with application/business time period)
 * Bi-Temporal Table (with both types of periods)
@@ -15,6 +16,7 @@ In *ISO/IEC TR 19075-2:2015*, it defines three different types of time-related t
 Comdb2 has native support for all three types of time-related tables.
 
 Reference works:
+
 * SQL:2011 Standard [ISO/IEC TR 19075-2:2015](http://standards.iso.org/ittf/PubliclyAvailableStandards/c060394_ISO_IEC_TR_19075-2_2015.zip) (Free download)
 * [Temporal features in SQL:2011](http://cs.ulb.ac.be/public/_media/teaching/infoh415/tempfeaturessql2011.pdf)
 
@@ -147,6 +149,7 @@ Another example with `FOR SYSTEM_TIME ALL`:
 ```
 
 Remarks:
+
 * `<datetime>` specified in the `FOR SYSTEM_TIME` clauses can be any [expressions](sql.html#expr), even subqueries, whose result can be convertible to a single `datetimeus` datatype value.
 * `<datetime_start>` must be strictly less than `<datetime_end>` in `FOR SYSTEM_TIME FROM ... TO ...` and `FOR SYSTEM_TIME BETWEEN ... AND ...` clauses.
 
@@ -177,6 +180,7 @@ create table t1 {
 ```
 
 Remarks:
+
 * `BUSINESS` time period must be defined under the `periods` section in the csc2 file like above. A business-versioned temporal table must have exactly one period named `BUSINESS` defined in the `periods` section.
 * `BUSINESS` time period consumes two `datetimeus` columns with the first one being the business start time and the second one being the business end time.
 * The two period columns must be nullable. (This differs from the period defnition in *ISO/IEC TR 19075-2:2015*.) `NULL` in the business start time column means "less than all `datetimeus` values" and `NULL` in the business end time column means "greater than all `datetimeus` values".
@@ -264,6 +268,7 @@ Now, rows with `id = 2` in `t1` are:
 ```
 
 Remarks:
+
 * In clause `FOR PORTION OF BUSINESS_TIME FROM <datetime_start> TO <datetime_end>`, `<datetime_start>` and `<datetime_end>` can be any [expressions](sql.html#expr), even subqueries, whose result can be convertible to a single `datetimeus` datatype value.
 
 ### Querying a table with business time
@@ -298,6 +303,7 @@ If we want data effective on "2016-06-01", we could do:
 ```
 
 Remarks:
+
 * `<datetime>` specified in the `FOR BUSINESS_TIME` clauses can be any [expressions](sql.html#expr), even subqueries, whose result can be convertible to a single `datetimeus` datatype value.
 * `<datetime_start>` must be strictly less than `<datetime_end>` in `FOR BUSINESS_TIME FROM ... TO ...` and `FOR BUSINESS_TIME BETWEEN ... AND ...` clauses.
 
@@ -382,6 +388,7 @@ After "2016-08-01", if we want to run our business applications against dataset 
 ```
 
 Remarks:
+
 * The temporal `FOR` clauses support any combinations of `SYSTEM_TIME` and `BUSINESS_TIME` specifications. For examples, both `FOR SYSTEM_TIME AS OF ..., BUSINESS_TIME FROM ... TO ...` and `FOR SYSTEM_TIME FROM ... TO ..., BUSINESS_TIME AS OF ...` are valid temporal `FOR` clauses.
 
 ### Setting temporal registers
@@ -399,4 +406,5 @@ For example,
 ```
 
 Remarks:
+
 * Unlike that all [expressions](sql.html#expr) and subqueries are supported in the temporal `FOR` clauses, time specifications in `SET TEMPORAL` statements	can only be literal datetime strings that are convertible to `datetimeus` datatype.
