@@ -338,7 +338,23 @@ the one of the key fields defined in the key section of the schema.
 
 Here is an example:
 
-
+```
+[create table t1 {
+    schema {
+        int id
+        vutf8 json[128]
+    }
+    keys {
+        dup "PK" = id + (int)"json_extract(json, '$.a')" + (int)"json_extract(json, '$.b')"
+    }
+    constraints {
+       no_overlap "PK" -> "json_extract(json, '$.a')":"json_extract(json, '$.b')"
+    }
+}] rc 0
+(rows inserted=1)
+[insert into t1 values (1, '{"a":0,"b":5}')] rc 0
+[insert into t1 values (1, '{"a":4,"b":5}')] failed with rc 3 OP #3 BLOCK2_SEQV2(824): verify key constraint cannot resolve constraint no_overlap(json_extract(json, '$.a') : json_extract(json, '$.b'))
+```
 
 Once a `no_overlap` constraint is defined on a key, Comdb2 enforces that there cannot be more than one rows
 with identical values in all key fields (other than `start` and `end`) in any interval range `[start, end)`.

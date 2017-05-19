@@ -506,7 +506,10 @@ set all_graphs {
   constraint-section {
       loop {line {opt {line /no_overlap}}
                  /keyname ->
-                 {or {line /table-name : /keyname}
+                 {or {line /table-name : /keyname
+                           {opt {line on delete cascade}}
+                           {opt {line on update  cascade}}
+                     }
                      {line /start : /end}
                  }
            }
