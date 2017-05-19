@@ -43,6 +43,8 @@ create table t1 {
 }
 ```
 
+![periods](images/period-section.gif)
+
 Remarks:
 
 * `SYSTEM` time period must be defined under the `periods` section in the csc2 file like above. A system-versioned temporal table must have exactly one period named `SYSTEM` defined in the `periods` section.
@@ -72,7 +74,7 @@ Now, t1 looks like:
 When inserting each row into the current table, Comdb2 generates `datetimeus` values for system time columns with system start time being the transaction start time and system end time being `NULL`. Even if these two columns were referenced in the `INSERT` statement, the values of these two columns would still be overwritten as transaction start time and `NULL`.
 
 ### Updating data in a table with system time
-Traditional [`UPDATE`](sql.html#update) statements can be used to update data in system-versioned tables. Imagine that we started a transaction at "2017-05-10T120000" to update the following row.
+Traditional [`UPDATE`](sql.html#update) statements without the `FOR PORTION OF BUSINESS_TIME` clause can be used to update data in system-versioned tables. Imagine that we started a transaction at "2017-05-10T120000" to update the following row.
 
 ```
 (rows updated=1)
@@ -97,7 +99,7 @@ Now, `t1` looks like (with `coverage` and `sys_start` columns updated for `id = 
 `UPDATE` on system-versioned tables only operate on current system rows. During the execution of the above `UPDATE` statement, Comdb2 updates the value of the row in the current table. In addition, within the same transaction, it moves a copy of the old row to the corresponding history table. Comdb2 also generates values for both `sys_start` and `sys_end` columns for both (current and history) tables. In particular, `sys_start` in the current table and `sys_end` in the history table are set to the start time of the update transaction.
 
 ### Deleting data in a table with system time
-Traditional [`DELETE`](sql.html#delete) statements can be used to delete data from system-versioned tables. Imagine that we started a transaction at "2017-05-10T130000" to delete the following row (where id = 2).
+Traditional [`DELETE`](sql.html#delete) statements without the `FOR PORTION OF BUSINESS_TIME` clause can be used to delete data from system-versioned tables. Imagine that we started a transaction at "2017-05-10T130000" to delete the following row (where id = 2).
 
 ```
 (rows deleted=1)
@@ -122,7 +124,7 @@ And `t1_history` looks like (with old copy of the deleted row inserted to histor
 `Delete` on system-versioned tables only operate on current system rows. When you delete a row from current table, Comdb2 automatically removes the row from the current table but maintains an old version of the row in the history table. Comdb2 sets the end time of the (deleted) row in the history table to the transaction start time of the `DELETE` statement.
 
 ### Querying a table with system time
-Traditional [`SELECT`](sql.html#select-statement) statements are still allowed in system-versioned tables. In addition, one of the following supported system time period specifications can be used in the `FROM` clause of your `SELECT` query:
+Traditional [`SELECT`](sql.html#select-statement) statements are still allowed in system-versioned tables. In addition, one of the following supported system time period specifications can be used in the [`temporal-clause`](sql.html#temporal-clause) of your `SELECT` query:
 
 |System Time Queries|Qualifying Rows|Description|
 |---|---|---|
@@ -179,6 +181,8 @@ create table t1 {
 }
 ```
 
+![periods](images/period-section.gif)
+
 Remarks:
 
 * `BUSINESS` time period must be defined under the `periods` section in the csc2 file like above. A business-versioned temporal table must have exactly one period named `BUSINESS` defined in the `periods` section.
@@ -186,7 +190,7 @@ Remarks:
 * The two period columns must be nullable. (This differs from the period defnition in *ISO/IEC TR 19075-2:2015*.) `NULL` in the business start time column means "less than all `datetimeus` values" and `NULL` in the business end time column means "greater than all `datetimeus` values".
 * Comdb2 uses an inclusive-exclusive (close-open) approach for the busiess time period `(bus_start, bus_end)`, meaning that a row is effective from (and including) `bus_start` to (but not including) `bus_end`.
 * Comdb2 generates implicit constraint to enforce that `bus_start` is strictly less than `bus_end` for every row in the business-versioned table.
-* Optional extended `no_overlap` constraints can be defined for keys that contain both the business period columns `bus_start` and `bus_end`, meaning that there cannot be more than one versions/rows with identical values on other key fields being effective at the same time (i.e. having overlappint business period).
+* Optional extended [`no_overlap` constraints](table_schema.html#no-overlapping-constraints) can be defined for keys that contain both the business period columns `bus_start` and `bus_end`, meaning that there cannot be more than one versions/rows with identical values on other key fields being effective at the same time (i.e. having overlapping business period).
 
 ### Inserting data into a table with business time
 Following the SQL:2011 standard, rows can be inserted into tables containing an business-time period in exactly the same way as inserting rows into any tables. The only difference is that there is an automatically-generated constraint for such tables that ensures that the value of the end column of the business-time period is greater than the value of the start column of the business-time period for every row being inserted.
@@ -218,7 +222,7 @@ Inserting overlapping rows would fail:
 
 ### Updating data in a table with business time
 
-Traditional `UPDATE` statements are still allowed on tables with business time. Using traditional `UPDATE` statement on business-versioned tables would behave exactly like the update operations on any regular tables. In addition to regular `UPDATE` statement, with business-versioned tables, a `FOR PORTION OF BUSINESS_TIME FROM ... TO ...` clause can be used to restrict the update to a specific business time period. This specified updates apply only to those rows whose business periods overlap or are contained in the given period. If your update impacts data in a row that isn't fully contained within the time period specified, Comdb2 will update the row range specified by the period clause and insert additional rows to record the old values for the period not included in the update operation.
+[`UPDATE`](sql.html#update) statements are used to update rows in tables with business time. Using traditional `UPDATE` statement without the `FOR PORTION OF BUSINESS_TIME` clause on business-versioned tables would behave exactly like the update operations on any regular tables. In addition, with business-versioned tables, a `FOR PORTION OF BUSINESS_TIME FROM ... TO ...` clause can be used to restrict the update to a specific business time period. This specified updates apply only to those rows whose business periods overlap or are contained in the given period. If your update impacts data in a row that isn't fully contained within the time period specified, Comdb2 will update the row range specified by the period clause and insert additional rows to record the old values for the period not included in the update operation.
 
 In particular, Comdb2 follows SQL:2011's Standard defined in *ISO/IEC TR 19075-2:2015* for this type of `UPDATE` statement. Quoting the standard behavior as follow:
 
@@ -243,8 +247,8 @@ Now, rows with `id = 1` in `t1` are:
 [select * from t1 where id = 1] rc 0
 ```
 
-### Deleteing data in a table with business time
-Traditional `DELETE` statements are still allowed on tables with business time. Using traditional `DELETE` statement on business-versioned tables would behave exactly like the update operations on any regular tables.In addition to regular `DELETE` statement, with business-versioned tables, a `FOR PORTION OF BUSINESS_TIME FROM ... TO ...` clause can be used to restrict the delete to a specific business time period. This specified deletes apply only to those rows whose business periods overlap or are contained in the given period. If rows being deleted have data that isn't fully contained within the time period specified, Comdb2 will preserve the portion outside the specified range.
+### Deleting data in a table with business time
+[`DELETE`](sql.html#delete) statements are used to delete rows in tables with business time. Using traditional `DELETE` statement without the `FOR PORTION OF BUSINESS_TIME` clause on business-versioned tables would behave exactly like the update operations on any regular tables. In addition to regular `DELETE` statement, with business-versioned tables, a `FOR PORTION OF BUSINESS_TIME FROM ... TO ...` clause can be used to restrict the delete to a specific business time period. This specified deletes apply only to those rows whose business periods overlap or are contained in the given period. If rows being deleted have data that isn't fully contained within the time period specified, Comdb2 will preserve the portion outside the specified range.
 
 In particular, Comdb2 follows SQL:2011's Standard defined in *ISO/IEC TR 19075-2:2015* for this type of `DELETE` statement. Quoting the standard behavior as follow:
 
@@ -272,7 +276,7 @@ Remarks:
 * In clause `FOR PORTION OF BUSINESS_TIME FROM <datetime_start> TO <datetime_end>`, `<datetime_start>` and `<datetime_end>` can be any [expressions](sql.html#expr), even subqueries, whose result can be convertible to a single `datetimeus` datatype value.
 
 ### Querying a table with business time
-You can include one of the following supported business time period specifications in the `FROM` clause of your `SELECT` query:
+Traditional [`SELECT`](sql.html#select-statement) statements are still allowed in business-versioned tables. In addition, one of the following supported business time period specifications can be used in the [`temporal-clause`](sql.html#temporal-clause) of your `SELECT` query:
 
 |Business Time Queries|Qualifying Rows|Description|
 |---|---|---|
@@ -338,6 +342,8 @@ create table t1 {
 }
 ```
 
+![periods](images/period-section.gif)
+
 Imagine that on "2016-06-01", we inserted two rows into the table:
 
 ```
@@ -389,10 +395,10 @@ After "2016-08-01", if we want to run our business applications against dataset 
 
 Remarks:
 
-* The temporal `FOR` clauses support any combinations of `SYSTEM_TIME` and `BUSINESS_TIME` specifications. For examples, both `FOR SYSTEM_TIME AS OF ..., BUSINESS_TIME FROM ... TO ...` and `FOR SYSTEM_TIME FROM ... TO ..., BUSINESS_TIME AS OF ...` are valid temporal `FOR` clauses.
+* The [`temporal-clause`](sql.html#temporal-clause) support any combinations of `SYSTEM_TIME` and `BUSINESS_TIME` specifications. For examples, both `FOR SYSTEM_TIME AS OF ..., BUSINESS_TIME FROM ... TO ...` and `FOR SYSTEM_TIME FROM ... TO ..., BUSINESS_TIME AS OF ...` are valid temporal `FOR` clauses.
 
 ### Setting temporal registers
-This feature enables you to run existing applications against data from a certain point in time without changing the application itself. To do this, simply run `SET TEMPORAL` followed by any `SYSTEM_TIME` or `BUSINESS_TIME` specifications.
+Use [`SET` statements](sql.html#set-statements) to set temporal period specifications in registers to avoid typing the long [`temporal-clause`](sql.html#temporal-clause). This feature enables you to run existing applications against data from a certain point in time or a range of time  without changing the application itself. To do this, simply run `SET TEMPORAL` followed by any `SYSTEM_TIME` or `BUSINESS_TIME` specifications.
 
 For example,
 
@@ -407,4 +413,4 @@ For example,
 
 Remarks:
 
-* Unlike that all [expressions](sql.html#expr) and subqueries are supported in the temporal `FOR` clauses, time specifications in `SET TEMPORAL` statements	can only be literal datetime strings that are convertible to `datetimeus` datatype.
+* Unlike that all [expressions](sql.html#expr) and subqueries are supported in the [`temporal-clause`](sql.html#temporal-clause), time specifications in `SET TEMPORAL` statements	can only be literal datetime strings that are convertible to `datetimeus` datatype.
