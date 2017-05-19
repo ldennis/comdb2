@@ -99,7 +99,7 @@ The expressions may use the values of other columns. All expressions are evaluat
 made. A ```WHERE``` clause can be used to restrict which rows are updated.
 
 An optional `FOR PORTION OF BUSINESS_TIME FROM ... TO ...` clause can be used to restrict the update to a specific
-business time period for [Business-Versioned Tables](bitemporal.html#Business-Versioned-Temporal-Tables).
+business time period for [Business-Versioned Tables](bitemporal.html#business-versioned-temporal-tables).
 
 See also:
 
@@ -121,7 +121,7 @@ will traverse all rows and remove them individually.  This makes it a less effic
 statement, but has the advantage that it will work on tables with foreign key constraints.
 
 An optional `FOR PORTION OF BUSINESS_TIME FROM ... TO ...` clause can be used to restrict the update to a specific
-business time period for [Business-Versioned Tables](bitemporal.html#Business-Versioned-Temporal-Tables).
+business time period for [Business-Versioned Tables](bitemporal.html#business-versioned-temporal-tables).
 
 See also:
 
