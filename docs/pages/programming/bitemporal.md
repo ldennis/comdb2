@@ -398,7 +398,7 @@ Remarks:
 * The [`temporal-clause`](sql.html#temporal-clause) support any combinations of `SYSTEM_TIME` and `BUSINESS_TIME` specifications. For examples, both `FOR SYSTEM_TIME AS OF ..., BUSINESS_TIME FROM ... TO ...` and `FOR SYSTEM_TIME FROM ... TO ..., BUSINESS_TIME AS OF ...` are valid temporal `FOR` clauses.
 
 ### Setting temporal registers
-Use [`SET` statements](sql.html#set-statements) to set temporal period specifications in registers to avoid typing the long [`temporal-clause`](sql.html#temporal-clause). This feature enables you to run existing applications against data from a certain point in time or a range of time  without changing the application itself. To do this, simply run `SET TEMPORAL` followed by any `SYSTEM_TIME` or `BUSINESS_TIME` specifications.
+Use [`SET` statements](sql.html#set-statements) to set temporal period specifications in registers to avoid typing the long [`temporal-clause`](sql.html#temporal-clause). This feature enables you to run existing applications against data from a certain point in time or a range of time  without changing the application itself. To do this, simply run `SET TEMPORAL` followed by any `SYSTEM_TIME` or `BUSINESS_TIME` specifications. Use `DISABLE` keyword to erase previous temporal settings.
 
 For example,
 

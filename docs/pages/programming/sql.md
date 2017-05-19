@@ -614,6 +614,16 @@ Sets a tunable that determines how hard the query planner will work to estimate 
 setting is a number from 1 (least effort, quickly formed plans) to 10 (most effort, possibly better plans).  The 
 default setting is 1.
 
+### SET TEMPORAL
+
+Sets temporal period specifications in registers to avoid typing the long [`temporal-clause`](sql.html#temporal-clause). This feature enables you to run existing applications against data from a certain point in time or a range of time  without changing the application itself. Use `DISABLE` keyword to erase previous temporal settings.
+
+See also:
+
+[Temporal Tables](bitemporal.html)
+
+[Setting Temporal Registers](bitemporal.html#setting-temporal-registers)
+
 ## Common syntax rules
 
 ### qualified-table-name
