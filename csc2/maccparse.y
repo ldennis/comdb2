@@ -133,49 +133,31 @@ validstruct:	recstruct
 constraintstruct: T_CONSTRAINTS comment '{' cnstrtdef '}' { end_constraint_list(); }
                 ;
 
-ctmodifiers:    T_CON_ON T_CON_UPDATE T_CASCADE { set_constraint_mod(0,0,1); }
-                | T_CON_ON T_CON_UPDATE T_RESTRICT { set_constraint_mod(0,0,0); }
-                | T_CON_ON T_CON_DELETE T_CASCADE { set_constraint_mod(0,1,1); }
-                | T_CON_ON T_CON_DELETE T_RESTRICT { set_constraint_mod(0,1,0); }
-                ;
-
-cnstrtstart:      string '-' T_GT { end_constraint_list(); start_constraint_list($1); }
-                | varname '-' T_GT { end_constraint_list(); start_constraint_list($1); }
-                ;
-
-cnstrtdef:      cnstrtstart ctrules cnstrtdef { /*end_constraint_list(); */ }
+ctmodifiers:    T_CON_ON T_CON_UPDATE T_CASCADE ctmodifiers           { set_constraint_mod(0,0,1); }
+                | T_CON_ON T_CON_UPDATE T_RESTRICT ctmodifiers        { set_constraint_mod(0,0,0); }
+                | T_CON_ON T_CON_DELETE T_CASCADE ctmodifiers         { set_constraint_mod(0,1,1); }
+                | T_CON_ON T_CON_DELETE T_RESTRICT ctmodifiers        { set_constraint_mod(0,1,0); }
                 |
                 ;
 
-ctrules:          ctrules cnstrtbllistmod
-                | ctrules ctnooverlaplist
+cnstrtstart:      string '-' T_GT { end_constraint_list(); start_constraint_list($1, 0); }
+                | varname '-' T_GT { end_constraint_list(); start_constraint_list($1, 0); }
+                | T_CON_NOOVERLAP string '-' T_GT { end_constraint_list(); start_constraint_list($2, 1); }
+                | T_CON_NOOVERLAP varname '-' T_GT { end_constraint_list(); start_constraint_list($2, 1); }
+                ;
+
+cnstrtdef:      cnstrtstart cnstrtbllist ctmodifiers cnstrtdef { /*end_constraint_list(); */}
                 |
                 ;
 
-cnstrtbllistmod:  cnstrtbllistmod cnstrtbl
-                | cnstrtbllistmod ctmodifiers
-                | cnstrtbl
                 ;
-
-cnstrtbl:         T_LT string ':' string T_GT  {  add_constraint($2,$4); }
-                | T_LT varname ':' varname T_GT  {  add_constraint($2,$4); }
+cnstrtbllist:     cnstrtbllist T_LT string ':' string T_GT  {  add_constraint($3,$5); }
+                | cnstrtbllist T_LT varname ':' varname T_GT  {  add_constraint($3,$5); }
+                | cnstrtbllist string ':' string  {  add_constraint($2,$4); }
+                | cnstrtbllist varname ':' varname  {  add_constraint($2,$4); }
+                | cnstrtbllist cnstrtstart
+                |
                 ;
-
-ctnooverlaplist: ctnooverlaplist T_CON_NOOVERLAP T_LT varname ':' varname T_GT {
-                    add_no_overlap_constraint($4, $6);
-                }
-                | ctnooverlaplist T_CON_NOOVERLAP T_LT string ':' string T_GT {
-                    add_no_overlap_constraint($4, $6);
-                }
-                | T_CON_NOOVERLAP T_LT varname ':' varname T_GT {
-                    add_no_overlap_constraint($3, $5);
-                }
-                | T_CON_NOOVERLAP T_LT string ':' string T_GT {
-                    add_no_overlap_constraint($3, $5);
-                }
-                ;
-               
-
 
 /* constantstruct: defines constants
 **              ie.

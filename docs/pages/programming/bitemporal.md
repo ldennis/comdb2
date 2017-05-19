@@ -176,7 +176,7 @@ create table t1 {
 		BUSINESS(bus_start, bus_end)
 	}
 	constraints {
-		"PK" -> no_overlap<bus_start:bus_end>
+		no_overlap "PK" -> bus_start : bus_end
 	}
 }
 ```
@@ -337,7 +337,7 @@ create table t1 {
         SYSTEM(sys_start, sys_end)
     }
     constraints {
-        "PK" -> no_overlap<bus_start:bus_end>
+        no_overlap "PK" -> bus_start : bus_end
     }
 }
 ```

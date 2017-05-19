@@ -319,7 +319,7 @@ keys {
     "PK" = id + s + e
 }
 constraints {
-    "PK" -> no_overlap<s : e>
+    no_overlap "PK" -> s : e
 }
 }\$\$
 EOF

@@ -504,9 +504,10 @@ set all_graphs {
   }
 
   constraint-section {
-      loop {line /keyname ->
+      loop {line {opt {line /no_overlap}}
+                 /keyname ->
                  {or {line /table-name : /keyname}
-                     {line /no_overlap /start : /end}
+                     {line /start : /end}
                  }
            }
   }

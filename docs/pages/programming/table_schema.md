@@ -333,6 +333,13 @@ inclusive-exclusive (close-open) approach for the range. The `start` and `end` c
 "greater than all". Comdb2 also generates implicit constraint to enforce that `start` is strictly less than `end`
 for every row in the table.
 
+`no_overlap` constraints can also be used together with indexes on expressions. Simply set `start` and `end` to be
+the one of the key fields defined in the key section of the schema.
+
+Here is an example:
+
+
+
 Once a `no_overlap` constraint is defined on a key, Comdb2 enforces that there cannot be more than one rows
 with identical values in all key fields (other than `start` and `end`) in any interval range `[start, end)`.
 

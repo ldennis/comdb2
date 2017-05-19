@@ -1472,6 +1472,25 @@ int verify_add_constraints(struct javasp_trans_state *javasp_trans_handle,
                         to_off = key_has_member(lky, ct->keynm[ridx]);
                         to_off = lky->member[to_off].offset;
 
+                        /* make sure from strictly less than to */
+                        cmp = memcmp(lkey + from_off, lkey + to_off, mlen);
+                        if (cmp >= 0) {
+                            if (iq->debug) {
+                                reqprintf(iq, "VERKYCNSTRT CANT RESOLVE "
+                                              "CONSTRAINT NO_OVERLAP(%s : %s)",
+                                          ct->table[ridx], ct->keynm[ridx]);
+                                reqdumphex(iq, lkey, ixlen);
+                            }
+                            reqerrstr(iq, COMDB2_CSTRT_RC_INVL_TBL,
+                                      "verify key constraint cannot resolve "
+                                      "constraint no_overlap(%s : %s)",
+                                      ct->table[ridx], ct->keynm[ridx]);
+                            *errout = OP_FAILED_INTERNAL + ERR_FIND_CONSTRAINT;
+                            free_cached_delayed_indexes(iq);
+                            close_constraint_table_cursor(cur);
+                            return ERR_BADREQ;
+                        }
+
                         memcpy(rkey, lkey, MAXKEYLEN);
                         memset(rkey + to_off, 0, mlen);
 

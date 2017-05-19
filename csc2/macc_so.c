@@ -86,7 +86,7 @@ void dyns_disallow_bools(void) { allow_bools = 0; }
 
 int dyns_used_bools(void) { return used_bools; }
 
-void start_constraint_list(char *tblname)
+void start_constraint_list(char *keyname, int no_overlap)
 {
     if (nconstraints >= MAXCNSTRTS) {
         csc2_error("ERROR: TOO MANY CONSTRAINTS SPECIFIED. MAX %d\n",
@@ -94,15 +94,22 @@ void start_constraint_list(char *tblname)
         any_errors++;
         return;
     }
-    constraints[nconstraints].flags = 0;
+    constraints[nconstraints].flags = no_overlap ? CT_NO_OVERLAP : 0;
     constraints[nconstraints].ncnstrts = 0;
-    constraints[nconstraints].lclkey = tblname;
+    constraints[nconstraints].lclkey = keyname;
     /*  fprintf(stderr, "constraints for key %s\n", tblname);*/
 }
 
 void set_constraint_mod(int start, int op, int type)
 {
     /*fprintf(stderr, "%d %d %d\n", start, op, type);*/
+    if (constraints[nconstraints].flags & CT_NO_OVERLAP) {
+        csc2_error("Error: No cascading allowed on no overlap constraints");
+        csc2_syntax_error(
+            "Error: No cascading allowed on no overlap constraints");
+        any_errors++;
+        return;
+    }
     if (type == 0)
         return;
     if (op == 0)
@@ -240,22 +247,6 @@ void add_constraint(char *tbl, char *key)
     constraints[nconstraints].keynm[cidx] = key;
     /*  fprintf(stderr, "constraint: tbl %s key %s %d\n",
      * tbl,key,nconstraints);*/
-}
-
-void add_no_overlap_constraint(char *from, char *to)
-{
-    int cidx = constraints[nconstraints].ncnstrts;
-    if (cidx >= MAXCNSTRTS) {
-        csc2_error(
-            "ERROR: TOO MANY RULES SPECIFIED IN CONSTRAINT TBL: %s. MAX %d\n",
-            constraints[nconstraints].lclkey, MAXCNSTRTS);
-        any_errors++;
-        return;
-    }
-    constraints[nconstraints].flags = CT_NO_OVERLAP;
-    constraints[nconstraints].ncnstrts++;
-    constraints[nconstraints].table[cidx] = from; /* use table to save from */
-    constraints[nconstraints].keynm[cidx] = to; /* use keynm to save to */
 }
 
 int constant(char *var)
