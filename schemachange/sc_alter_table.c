@@ -768,6 +768,46 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
         commit_schemas(/*s->table*/db->dbname);
         update_dbstore(db); //update needs to occur after refresh of hashtbl
     }
+    MEMORY_SYNC;
+
+    if (!have_all_schemas())
+        sc_errf(s, "Missing schemas (internal error)\n");
+
+    /* kludge: fix lrls */
+    fix_lrl_ixlen_tran(transac);
+
+    if (create_sqlmaster_records(transac)) {
+        sc_errf(s, "create_sqlmaster_records failed\n");
+        goto failed;
+    }
+    create_master_tables(); /* create sql statements */
+   
+    for(indx=0;indx<maxindx;indx++)
+    {
+       db = dbs[indx];
+       live_sc_off(db);
+    }
+
+    /* artificial sleep to aid testing */
+    if (s->commit_sleep) {
+        sc_printf(s, "artificially sleeping for %d...\n", s->commit_sleep);
+        logmsg(LOGMSG_DEBUG, "artificially sleeping for %d...\n", s->commit_sleep);
+        sleep(s->commit_sleep);
+        sc_printf(s, "...slept for %d\n", s->commit_sleep);
+    }
+
+    if (!gbl_create_mode) {
+        logmsg(LOGMSG_INFO, "Table %s is at version: %d\n", newdb->dbname, newdb->version);
+    }
+
+    for(indx=0;indx<maxindx;indx++) {
+        db = dbs[indx];
+        newdb = newdbs[indx];
+
+        llmeta_dump_mapping_table_tran(transac, thedb, db->dbname, 1);
+    }
+
+    sc_printf(s, "Schema change ok\n");
 
     for(indx=0;indx<maxindx;indx++) {
         rc = bdb_close_only_tran(pold_bdb_handle[indx], transac, &bdberr);
@@ -807,48 +847,6 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
             bdb_handle_dbp_add_hash(db->handle, polddb_bthashsz[indx]);
         }
     }
-
-    MEMORY_SYNC;
-
-    if (!have_all_schemas())
-        sc_errf(s, "Missing schemas (internal error)\n");
-
-    /* kludge: fix lrls */
-    fix_lrl_ixlen_tran(transac);
-
-    if (create_sqlmaster_records(transac)) {
-        sc_errf(s, "create_sqlmaster_records failed\n");
-        goto failed;
-    }
-    create_master_tables(); /* create sql statements */
-   
-    
-    for(indx=0;indx<maxindx;indx++)
-    {
-       db = dbs[indx];
-       live_sc_off(db);
-    }
-
-    /* artificial sleep to aid testing */
-    if (s->commit_sleep) {
-        sc_printf(s, "artificially sleeping for %d...\n", s->commit_sleep);
-        logmsg(LOGMSG_DEBUG, "artificially sleeping for %d...\n", s->commit_sleep);
-        sleep(s->commit_sleep);
-        sc_printf(s, "...slept for %d\n", s->commit_sleep);
-    }
-
-    if (!gbl_create_mode) {
-        logmsg(LOGMSG_INFO, "Table %s is at version: %d\n", newdb->dbname, newdb->version);
-    }
-
-    for(indx=0;indx<maxindx;indx++) {
-        db = dbs[indx];
-        newdb = newdbs[indx];
-
-        llmeta_dump_mapping_table_tran(transac, thedb, db->dbname, 1);
-    }
-
-    sc_printf(s, "Schema change ok\n");
 
     for(indx=0;indx<maxindx;indx++) {
         db = dbs[indx];

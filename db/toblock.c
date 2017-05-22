@@ -5707,6 +5707,7 @@ add_blkseq:
             bdb_llog_scdone(s->handle, s->type, 1, &bdberr);
             free(iq->scdone);
             iq->scdone = NULL;
+            unlock_schema_lk();
         }
         if (iq->osql_flags & OSQL_FLAGS_ROWLOCKS) {
             bdb_llog_rowlocks(thedb->bdb_env, iq->osql_rowlocks_enable ?

@@ -550,7 +550,8 @@ int finalize_schema_change_thd(struct ireq *iq, tran_type *trans)
         rc = do_finalize(finalize_alter_table, iq, trans, alter);
     else if (s->fulluprecs || s->partialuprecs)
         rc = finalize_upgrade_table(s);
-    unlock_schema_lk();
+    if (!iq->scdone)
+        unlock_schema_lk();
 
     reset_sc_thread(oldtype, s);
 
