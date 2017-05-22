@@ -5550,7 +5550,7 @@ int llmeta_dump_mapping_table_tran(void *tran, struct dbenv *dbenv,
     /* print out the versions of each of the table's files */
 
     /* print the main data file's version number */
-    if (bdb_get_file_version_data(p_db->handle, tran /*tran*/, 0 /*dtanum*/,
+    if (bdb_get_file_version_data(p_db->handle, tran, 0 /*dtanum*/,
                                   &version_num, &bdberr) ||
         bdberr != BDBERR_NOERROR) {
         if (err)
@@ -5573,7 +5573,7 @@ int llmeta_dump_mapping_table_tran(void *tran, struct dbenv *dbenv,
 
     /* print the blobs' version numbers */
     for (i = 1; i <= p_db->numblobs; ++i) {
-        if (bdb_get_file_version_data(p_db->handle, NULL /*tran*/, i /*dtanum*/,
+        if (bdb_get_file_version_data(p_db->handle, tran, i /*dtanum*/,
                                       &version_num, &bdberr) ||
             bdberr != BDBERR_NOERROR) {
             if (err)
@@ -5597,8 +5597,8 @@ int llmeta_dump_mapping_table_tran(void *tran, struct dbenv *dbenv,
     /* print the indicies' version numbers */
     logmsg(LOGMSG_INFO, "\tindex files\n");
     for (i = 0; i < p_db->nix; ++i) {
-        if (bdb_get_file_version_index(p_db->handle, tran /*tran*/,
-                                       i /*dtanum*/, &version_num, &bdberr) ||
+        if (bdb_get_file_version_index(p_db->handle, tran, i /*dtanum*/,
+                                       &version_num, &bdberr) ||
             bdberr != BDBERR_NOERROR) {
             if (err)
                 logmsg(LOGMSG_ERROR, "llmeta_dump_mapping: failed to fetch version "
