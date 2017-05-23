@@ -175,7 +175,7 @@ assert_vers $tblver
 
 #fastinit does not increase counter
 cdb2sql ${CDB2_OPTIONS} $dbnm default "truncate $tbl"
-assert_vers $tblver
+assert_vers $((tblver + 1))
 
 g=100
 while [ $g -lt 500 ] ; do 

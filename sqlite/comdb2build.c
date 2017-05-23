@@ -529,7 +529,7 @@ void comdb2AlterTable(
     if (authenticateSC(sc->table, pParse))
         goto out;
 
-    v->readOnly = 0;
+    comdb2WriteTransaction(pParse);
     sc->alteronly = 1;
     sc->nothrevent = 1;
     sc->live = 1;
@@ -542,7 +542,7 @@ void comdb2AlterTable(
     if(dryrun)
         comdb2prepareSString(v, pParse, 0,  sc, &comdb2SqlDryrunSchemaChange, (vdbeFuncArgFree)  &free_schema_change_type);
     else
-        comdb2prepareNoRows(v, pParse, 0,  sc, &comdb2SqlSchemaChange_tran, (vdbeFuncArgFree)  &free_schema_change_type);
+        comdb2prepareNoRows(v, pParse, 0,  sc, &comdb2SqlSchemaChange, (vdbeFuncArgFree)  &free_schema_change_type);
     return;
 
 out:
@@ -802,7 +802,7 @@ void comdb2DefaultProcedure(Parse* pParse, Token* nm, Token* ver, int str)
     v->readOnly = 0;
     sc->defaultsp = 1;
 
-    comdb2prepareNoRows(v, pParse, 0, sc, &comdb2SqlSchemaChange_tran, (vdbeFuncArgFree)  &free_schema_change_type);
+    comdb2prepareNoRows(v, pParse, 0, sc, &comdb2SqlSchemaChange, (vdbeFuncArgFree)  &free_schema_change_type);
 }
 
 void comdb2DropProcedure(Parse* pParse, Token* nm, Token* ver, int str)
