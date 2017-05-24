@@ -303,8 +303,8 @@ int appsock_schema_change(SBUF2 *sb, int *keepsocket);
 
 void handle_setcompr(SBUF2 *sb);
 
-void vsb_printf(SBUF2 *sb, const char *sb_prefix, const char *prefix,
-                const char *fmt, va_list args);
+void vsb_printf(loglvl lvl, SBUF2 *sb, const char *sb_prefix,
+                const char *prefix, const char *fmt, va_list args);
 void sb_printf(SBUF2 *sb, const char *fmt, ...);
 void sb_errf(SBUF2 *sb, const char *fmt, ...);
 

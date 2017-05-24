@@ -1519,8 +1519,8 @@ void handle_setcompr(SBUF2 *sb)
     sbuf2flush(sb);
 }
 
-void vsb_printf(SBUF2 *sb, const char *sb_prefix, const char *prefix,
-                const char *fmt, va_list args)
+void vsb_printf(loglvl lvl, SBUF2 *sb, const char *sb_prefix,
+                const char *prefix, const char *fmt, va_list args)
 {
     char line[1024];
     char *s;
@@ -1535,7 +1535,7 @@ void vsb_printf(SBUF2 *sb, const char *sb_prefix, const char *prefix,
             sbuf2printf(sb, "%s%s\n", sb_prefix, s);
             sbuf2flush(sb);
         }
-        logmsg(LOGMSG_INFO, "%s%s\n", prefix, s);
+        logmsg(lvl, "%s%s\n", prefix, s);
         ctrace("%s%s\n", prefix, s);
 
         s = next + 1;
@@ -1556,7 +1556,7 @@ void sb_printf(SBUF2 *sb, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    vsb_printf(sb, "?", "", fmt, args);
+    vsb_printf(LOGMSG_INFO, sb, "?", "", fmt, args);
 
     va_end(args);
 }
@@ -1566,7 +1566,7 @@ void sb_errf(SBUF2 *sb, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    vsb_printf(sb, "!", "", fmt, args);
+    vsb_printf(LOGMSG_ERROR, sb, "!", "", fmt, args);
 
     va_end(args);
 }
@@ -1584,7 +1584,8 @@ void sc_printf(struct schema_change_type *s, const char *fmt, ...)
     if (s && s->sb)
         pthread_mutex_lock(&schema_change_sbuf2_lock);
 
-    vsb_printf((s) ? s->sb : NULL, "?", "Schema change info: ", fmt, args);
+    vsb_printf(LOGMSG_INFO, (s) ? s->sb : NULL, "?", "Schema change info: ",
+               fmt, args);
 
     if (s && s->sb)
         pthread_mutex_unlock(&schema_change_sbuf2_lock);
@@ -1605,7 +1606,8 @@ void sc_errf(struct schema_change_type *s, const char *fmt, ...)
     if (s && s->sb)
         pthread_mutex_lock(&schema_change_sbuf2_lock);
 
-    vsb_printf((s) ? s->sb : NULL, "!", "Schema change error: ", fmt, args);
+    vsb_printf(LOGMSG_ERROR, (s) ? s->sb : NULL, "!", "Schema change error: ",
+               fmt, args);
 
     if (s && s->sb)
         pthread_mutex_unlock(&schema_change_sbuf2_lock);

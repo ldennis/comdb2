@@ -48,10 +48,12 @@ int do_drop_table(struct ireq *iq, tran_type *tran)
     struct db *db = iq->usedb;
     if (db == NULL) {
         sc_errf(s, "Table doesn't exists\n");
+        reqerrstr(iq, ERR_SC, "Table doesn't exists");
         return SC_TABLE_DOESNOT_EXIST;
     }
     if (db->n_rev_constraints > 0) {
         sc_errf(s, "Can't drop tables with foreign constraints\n");
+        reqerrstr(iq, ERR_SC, "Can't drop tables with foreign constraints");
         return -1;
     }
     return SC_OK;
