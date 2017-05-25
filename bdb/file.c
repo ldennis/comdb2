@@ -1078,7 +1078,8 @@ int bdb_del_list_add_all(bdb_state_type *bdb_state, tran_type *tran, void *list,
 }
 
 /* deletes all the files that are no longer in use by a table */
-int bdb_del_unused_files(bdb_state_type *bdb_state, int *bdberr)
+int bdb_del_unused_files_tran(bdb_state_type *bdb_state, tran_type *tran,
+                              int *bdberr)
 {
     const char *blob_ext = ".blob";
     const char *data_ext = ".data";
@@ -1185,7 +1186,7 @@ int bdb_del_unused_files(bdb_state_type *bdb_state, int *bdberr)
                 /* try to find the file version amongst the active data files */
                 for (i = 0; !found_in_llmeta && i < bdb_state->numdtafiles;
                      ++i) {
-                    rc = bdb_get_file_version_data(bdb_state, NULL /*tran*/,
+                    rc = bdb_get_file_version_data(bdb_state, tran,
                                                    i /*dtanum*/, &version_num,
                                                    bdberr);
                     if (rc == 0) {
@@ -1199,7 +1200,7 @@ int bdb_del_unused_files(bdb_state_type *bdb_state, int *bdberr)
 
                 /* try to find the file version amongst the active indiciese */
                 for (i = 0; !found_in_llmeta && i < bdb_state->numix; ++i) {
-                    rc = bdb_get_file_version_index(bdb_state, NULL /*tran*/,
+                    rc = bdb_get_file_version_index(bdb_state, tran,
                                                     i /*dtanum*/, &version_num,
                                                     bdberr);
                     if (rc == 0) {
@@ -1227,8 +1228,8 @@ int bdb_del_unused_files(bdb_state_type *bdb_state, int *bdberr)
                     print(bdb_state, "deleting file %s\n", ent->d_name);
 
                     if (bdb_state->dbenv->txn_begin(bdb_state->dbenv,
-                                                    NULL /*parent_tid*/, &tid,
-                                                    0 /*flags*/)) {
+                                                    tran ? tran->tid : NULL,
+                                                    &tid, 0 /*flags*/)) {
                         logmsg(LOGMSG_ERROR, "%s: failed to begin trans for "
                                         "deleteing file: %s\n",
                                 __func__, ent->d_name);
@@ -1258,6 +1259,11 @@ int bdb_del_unused_files(bdb_state_type *bdb_state, int *bdberr)
 
     *bdberr = BDBERR_NOERROR;
     return 0;
+}
+
+int bdb_del_unused_files(bdb_state_type *bdb_state, int *bdberr)
+{
+    return bdb_del_unused_files_tran(bdb_state, NULL, bdberr);
 }
 
 int bdb_del_list_free(void *list, int *bdberr)
@@ -7428,7 +7434,8 @@ int bdb_get_first_logfile(bdb_state_type *bdb_state, int *bdberr)
 }
 
 /* queue all found unused files for garbage collection */
-int bdb_list_unused_files_tran(bdb_state_type *bdb_state, int *bdberr, char *powner, tran_type *tran)
+int bdb_list_unused_files_tran(bdb_state_type *bdb_state, tran_type *tran,
+                               int *bdberr, char *powner)
 {
     static char *owner = NULL;
     static pthread_mutex_t owner_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -7623,7 +7630,7 @@ done:
 
 int bdb_list_unused_files(bdb_state_type *bdb_state, int *bdberr, char *powner)
 {
-    return bdb_list_unused_files_tran(bdb_state, bdberr, powner, NULL);
+    return bdb_list_unused_files_tran(bdb_state, NULL, bdberr, powner);
 }
 
 int bdb_have_unused_files(void) { return oldfile_list_empty() != 1; }

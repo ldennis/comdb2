@@ -182,7 +182,7 @@ static int master_downgrading(struct schema_change_type *s)
     return SC_OK;
 }
 
-static void stop_and_free_sc(int rc, struct schema_change_type *s)
+static void stop_and_free_sc(int rc, struct schema_change_type *s, int free_sc)
 {
     if (!s->partialuprecs) {
         if (rc != 0) {
@@ -195,7 +195,8 @@ static void stop_and_free_sc(int rc, struct schema_change_type *s)
     }
     sc_set_running(0, sc_seed, NULL, 0);
 
-    free_schema_change_type(s);
+    if (free_sc)
+        free_schema_change_type(s);
     /* free any memory csc2 allocated when parsing schema */
     csc2_free_all();
 }
@@ -367,7 +368,7 @@ static int do_finalize(ddl_t func, struct ireq *iq, tran_type *input_tran,
         llog_scdone_t *scdone = malloc(sizeof(llog_scdone_t));
         scdone->handle = s->db->handle;
         scdone->type = type;
-        iq->scdone = scdone;
+        iq->sc->scdone = scdone;
     }
     return rc;
 }
@@ -381,13 +382,13 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq, tran_type *tran,
         wrlock_schema_lk();
     set_original_tablename(s);
     if (!s->resume) set_sc_flgs(s);
-    if ((rc = mark_sc_in_llmeta(s))) goto end; // non-tran
+    if ((rc = mark_sc_in_llmeta_tran(s, NULL))) goto end; // non-tran
     propose_sc(s);
     rc = pre(iq, tran);
     if (type == alter && master_downgrading(s))
         return SC_MASTER_DOWNGRADE;
     if (rc) {
-        mark_schemachange_over(s->table); // non-tran
+        mark_schemachange_over_tran(s->table, NULL); // non-tran
     } else if (s->finalize) {
         rc = do_finalize(post, iq, tran, type);
     } else {
@@ -499,7 +500,7 @@ int do_schema_change_tran(sc_arg_t *arg)
 
     reset_sc_thread(oldtype, s);
     if (rc != SC_COMMIT_PENDING && rc != SC_MASTER_DOWNGRADE)
-        stop_and_free_sc(rc, s);
+        stop_and_free_sc(rc, s, 1 /*free_sc*/);
 
     return rc;
 }
@@ -526,6 +527,7 @@ int finalize_schema_change_thd(struct ireq *iq, tran_type *trans)
     struct schema_change_type *s = iq->sc;
     enum thrtype oldtype = prepare_sc_thread(s);
     int rc = SC_OK;
+    int keep_sc_locked = iq->sc_locked;
 
     if (s->type == DBTYPE_TAGGED_TABLE && !s->timepart_nshards) {
         /* check for rename outside of taking schema lock */
@@ -533,7 +535,10 @@ int finalize_schema_change_thd(struct ireq *iq, tran_type *trans)
         check_for_idx_rename(s->newdb, s->db);
     }
 
-    wrlock_schema_lk();
+    if (!iq->sc_locked) {
+        wrlock_schema_lk();
+        iq->sc_locked = 1;
+    }
     if (s->is_trigger)
         rc = finalize_trigger(s);
     else if (s->is_sfunc)
@@ -550,12 +555,14 @@ int finalize_schema_change_thd(struct ireq *iq, tran_type *trans)
         rc = do_finalize(finalize_alter_table, iq, trans, alter);
     else if (s->fulluprecs || s->partialuprecs)
         rc = finalize_upgrade_table(s);
-    if (!iq->scdone)
+    if (!keep_sc_locked && !iq->sc->scdone) {
         unlock_schema_lk();
+        iq->sc_locked = 0;
+    }
 
     reset_sc_thread(oldtype, s);
 
-    stop_and_free_sc(rc, s);
+    stop_and_free_sc(rc, s, 0 /*free_sc*/);
     return rc;
 }
 
@@ -1051,4 +1058,14 @@ int dryrun_int(struct schema_change_type *s, struct db *db, struct db *newdb,
 out:
     print_schemachange_info(s, db, newdb);
     return 0;
+}
+
+int backout_schema_change(struct ireq *iq)
+{
+    struct schema_change_type *s = iq->sc;
+    if (s->addonly)
+        delete_db(s->table);
+
+    create_sqlmaster_records(NULL);
+    create_master_tables();
 }

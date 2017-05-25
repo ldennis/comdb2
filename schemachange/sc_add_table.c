@@ -224,6 +224,7 @@ int do_add_table(struct ireq *iq, tran_type *trans)
     int rc = SC_OK;
     struct db *db;
     set_empty_options(s);
+    trans = NULL; // non-tran for now?
 
     if ((rc = check_option_coherency(s, NULL, NULL)))
         return rc;

@@ -122,7 +122,10 @@ struct schema_change_type {
     int drop_table;
     int dbnum;
     int finalize; /* Whether the schema change should be committed */
+
     void *tran; /* transactional schemachange */
+    struct schema_change_type *sc_next;
+    struct llog_scdone *scdone;
 
 /* instead of failing to resume schemachange, generate sc plan
  * compatible with previous versions of comdb2 depending on which of

@@ -49,7 +49,9 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
 
     strcpy(s->original_master_node, gbl_mynode);
     unsigned long long seed;
-    if(s->resume) {
+    if (trans && s->tran == trans && iq->sc_seed)
+        seed = iq->sc_seed;
+    else if (s->resume) {
         logmsg(LOGMSG_INFO, "Resuming schema change: fetching seed\n");
         if ((rc = fetch_schema_change_seed(s, thedb, &seed))) {
             logmsg(LOGMSG_ERROR, "FAILED to fetch schema change seed\n");
@@ -57,8 +59,7 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
             return rc;
         }
         logmsg(LOGMSG_INFO, "Resuming schema change: fetched seed 0x%llx\n", seed);
-    }
-    else {
+    } else {
         seed = get_genid(thedb->bdb_env, 0);
         unsigned int *iptr = (unsigned int *) &seed;
         iptr[1] = htonl(crc32c(gbl_mynode, strlen(gbl_mynode)));
@@ -96,13 +97,14 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
         }
     }
 
-    if (thedb->master == gbl_mynode && !s->resume) {
+    if (thedb->master == gbl_mynode && !s->resume && iq->sc_seed != sc_seed) {
         logmsg(LOGMSG_INFO, "Calling bdb_set_disable_plan_genid 0x%llx\n", sc_seed);
         int bdberr;
         int rc = bdb_set_disable_plan_genid(thedb->bdb_env, NULL, sc_seed, &bdberr); 
         if (rc) {
             logmsg(LOGMSG_ERROR, "Couldn't save schema change seed\n");
         }
+        iq->sc_seed = sc_seed;
     }
 
     sc_arg_t *arg = malloc(sizeof(sc_arg_t));

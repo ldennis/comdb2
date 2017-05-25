@@ -633,7 +633,6 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
     int indx;
     int maxindx;
 
-
     if(s->timepart_nshards) {
         maxindx = s->timepart_nshards;
 
@@ -662,7 +661,7 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
 
         iq->usedb = db;
 
-        if (get_db_bthash(db, &polddb_bthashsz[indx]) != 0)
+        if (get_db_bthash_tran(db, &polddb_bthashsz[indx], transac) != 0)
             polddb_bthashsz[indx] = 0;
  
         bdb_lock_table_write(db->handle, transac);

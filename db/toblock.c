@@ -5701,13 +5701,20 @@ add_blkseq:
         int bdberr;
         if (iq->osql_flags & OSQL_FLAGS_ANALYZE) {
             bdb_llog_analyze(thedb->bdb_env, 1, &bdberr);
-        } else if (iq->scdone) {
+        } else if (iq->sc_pending) {
             int bdberr;
-            llog_scdone_t *s = iq->scdone;
-            bdb_llog_scdone(s->handle, s->type, 1, &bdberr);
-            free(iq->scdone);
-            iq->scdone = NULL;
-            unlock_schema_lk();
+            llog_scdone_t *s;
+            iq->sc = iq->sc_pending;
+            while (iq->sc != NULL) {
+                s = iq->sc->scdone;
+                if (s) {
+                    bdb_llog_scdone(s->handle, s->type, 1, &bdberr);
+                    free(s);
+                    iq->sc->scdone = NULL;
+                }
+                free_schema_change_type(iq->sc);
+                iq->sc = iq->sc->sc_next;
+            }
         }
         if (iq->osql_flags & OSQL_FLAGS_ROWLOCKS) {
             bdb_llog_rowlocks(thedb->bdb_env, iq->osql_rowlocks_enable ?
@@ -5725,8 +5732,25 @@ add_blkseq:
             sbuf2close(iq->dbglog_file);
             iq->dbglog_file = NULL;
         }
-    } else
+    } else {
         iq->dbenv->txns_aborted++;
+        iq->sc = iq->sc_pending;
+        while (iq->sc != NULL) {
+            int backout_schema_change(struct ireq *iq);
+            llog_scdone_t *s = iq->sc->scdone;
+            if (s) {
+                free(s);
+                iq->sc->scdone = NULL;
+            }
+            backout_schema_change(iq);
+            free_schema_change_type(iq->sc);
+            iq->sc = iq->sc->sc_next;
+        }
+    }
+    if (iq->sc_locked) {
+        unlock_schema_lk();
+        iq->sc_locked = 0;
+    }
 
     /* update stats (locklessly so we may get gibberish - I know this
      * and don't care) */

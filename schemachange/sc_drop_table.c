@@ -44,6 +44,7 @@ static int delete_table(struct db *db, void * trans)
 
 int do_drop_table(struct ireq *iq, tran_type *tran)
 {
+    tran = NULL; // non-tran for now?
     struct schema_change_type *s = iq->sc;
     struct db *db = iq->usedb;
     if (db == NULL) {

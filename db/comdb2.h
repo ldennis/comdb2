@@ -1429,7 +1429,9 @@ struct ireq {
     /* REVIEW COMMENTS AT BEGINING OF STRUCT BEFORE ADDING NEW VARIABLES */
 
     unsigned char have_snap_info;
-    struct llog_scdone *scdone;
+    uint64_t sc_seed;
+    struct schema_change_type *sc_pending;
+    int sc_locked;
 };
 
 /* comdb array struct */

@@ -151,8 +151,12 @@ int sc_set_running(int running, uint64_t seed, char *host, time_t time)
     if (thedb->master == gbl_mynode) {
         if (running && gbl_schema_change_in_progress) {
             pthread_mutex_unlock(&schema_change_in_progress_mutex);
-            logmsg(LOGMSG_ERROR, "schema change already in progress\n");
-            return -1;
+            if (seed == sc_seed)
+                return 0;
+            else {
+                logmsg(LOGMSG_ERROR, "schema change already in progress\n");
+                return -1;
+            }
         } else if (!running && seed != sc_seed && seed) {
             pthread_mutex_unlock(&schema_change_in_progress_mutex);
             logmsg(LOGMSG_ERROR, "cannot stop schema change; wrong seed given\n");
