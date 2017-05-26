@@ -324,7 +324,6 @@ int do_alter_table_int(struct ireq *iq, tran_type *tran)
 
     gbl_use_plan = 1;
     gbl_sc_last_writer_time = 0;
-    tran = NULL; // non-tran for now
 
     db = getdbbyname(s->table);
     if (db == NULL) {

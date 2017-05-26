@@ -382,13 +382,13 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq, tran_type *tran,
         wrlock_schema_lk();
     set_original_tablename(s);
     if (!s->resume) set_sc_flgs(s);
-    if ((rc = mark_sc_in_llmeta_tran(s, NULL))) goto end; // non-tran
+    if ((rc = mark_sc_in_llmeta_tran(s, NULL))) goto end; // non-tran ??
     propose_sc(s);
-    rc = pre(iq, tran);
+    rc = pre(iq, NULL); //non-tran ??
     if (type == alter && master_downgrading(s))
         return SC_MASTER_DOWNGRADE;
     if (rc) {
-        mark_schemachange_over_tran(s->table, NULL); // non-tran
+        mark_schemachange_over_tran(s->table, NULL); // non-tran ??
     } else if (s->finalize) {
         rc = do_finalize(post, iq, tran, type);
     } else {
