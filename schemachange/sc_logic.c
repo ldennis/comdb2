@@ -1063,9 +1063,14 @@ out:
 int backout_schema_change(struct ireq *iq)
 {
     struct schema_change_type *s = iq->sc;
-    if (s->addonly)
+    mark_schemachange_over(s->table);
+    if (s->addonly) {
         delete_db(s->table);
-
-    create_sqlmaster_records(NULL);
-    create_master_tables();
+        create_sqlmaster_records(NULL);
+        create_master_tables();
+    }
+    else {
+        reload_db_tran(s->db, NULL);
+    }
+    return 0;
 }

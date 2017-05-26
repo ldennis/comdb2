@@ -2354,7 +2354,7 @@ struct db *newqdb(struct dbenv *env, const char *name, int avgsz, int pagesize,
 int add_queue_to_environment(char *table, int avgitemsz, int pagesize);
 void stop_threads(struct dbenv *env);
 void resume_threads(struct dbenv *env);
-void replace_db(struct db *db);
+void replace_db(struct db *db, int add);
 int reload_schema(char *table, const char *csc2);
 void delete_db(char *db_name);
 int ix_find_rnum_by_recnum(struct ireq *iq, int recnum_in, int ixnum,
@@ -3492,8 +3492,10 @@ extern int dfp_conv_check_status(void *pctx, char *from, char *to);
 void fix_constraint_pointers(struct db *db, struct db *newdb);
 struct schema *create_version_schema(char *csc2, int version, struct dbenv *);
 void set_odh_options(struct db *);
+void set_odh_options_tran(struct db *db, tran_type *tran);
 void transfer_db_settings(struct db *olddb, struct db *newdb);
 int reload_after_bulkimport(struct db *, tran_type *);
+int reload_db_tran(struct db *, tran_type *);
 int debug_this_request(int until);
 
 int gbl_disable_stable_for_ipu;
@@ -3589,7 +3591,7 @@ int table_version_upsert(struct db *db, void *trans, int *bdberr);
  * Retrieves table version or 0 if no entry
  *
  */
-unsigned long long table_version_select(struct db *db);
+unsigned long long table_version_select(struct db *db, tran_type *tran);
 
 /**
  * Interface between partition roller and schema change */

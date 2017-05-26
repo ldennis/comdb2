@@ -4990,7 +4990,6 @@ backout:
         reqerrstr(iq, ERR_NOTSERIAL, "transaction is not serializable");
     }
 
-
     /* starting writes, no more reads */
     iq->p_buf_in = NULL;
     iq->p_buf_in_end = NULL;
@@ -5747,6 +5746,7 @@ add_blkseq:
             iq->sc = iq->sc->sc_next;
         }
     }
+
     if (iq->sc_locked) {
         unlock_schema_lk();
         iq->sc_locked = 0;

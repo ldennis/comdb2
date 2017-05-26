@@ -681,7 +681,7 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
         rc=restore_constraint_pointers(db, newdb);
         if (rc!=0) {  
             sc_errf(s, "Error restoring constraing pointers!\n");
-            goto failed;
+            goto backout;
         }
 
         /* from this point on failures should goto either backout if recoverable
@@ -703,22 +703,22 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
             /* newdb's version has been reset */
             bdberr = bdb_reset_csc2_version(transac, db->dbname, db->version);
             if (bdberr != BDBERR_NOERROR)
-                goto failed;
+                goto backout;
         }
 
         if ((rc = prepare_version_for_dbs_without_instant_sc(transac, db, newdb)))
-            goto failed;
+            goto backout;
 
         /* load new csc2 data */
         rc = load_new_table_schema_tran(thedb, transac, /*s->table*/ db->dbname, s->newcsc2);
         if (rc != 0) {
             sc_errf(s, "Error loading new schema into meta tables, "
                     "trying again\n");
-            goto failed;
+            goto backout;
         }
 
         if ((rc = set_header_and_properties(transac, newdb,s, 1, polddb_bthashsz[indx])))
-            goto failed;
+            goto backout;
 
         /*update necessary versions and delete unnecessary files from newdb*/
         if(gbl_use_plan && newdb->plan) {
@@ -731,17 +731,17 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
         }
 
         if (rc)
-            goto failed;
+            goto backout;
 
         /* delete any new file versions this table has */
         if(bdb_del_file_versions(newdb->handle, transac, &bdberr) ||
                 bdberr != BDBERR_NOERROR) {
             sc_errf(s, "%s: bdb_del_file_versions failed\n", __func__);
-            goto failed;
+            goto backout;
         }
 
         if ((rc = mark_schemachange_over_tran(db->dbname, transac)))
-            goto failed;
+            goto backout;
     }
 
     for(indx=0;indx<maxindx;indx++) {
@@ -861,6 +861,25 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
     FREE_ARRS;
     sc_printf(s, "Schema change finished, seed %llx\n", sc_seed);
     return 0;
+
+backout:
+    for(indx=0;indx<maxindx;indx++) {
+        db = dbs[indx];
+        newdb = newdbs[indx];
+
+        backout_constraint_pointers(newdb, db);
+        delete_temp_table(iq, newdb);
+        change_schemas_recover(/*s->table*/db->dbname);
+
+        logmsg(LOGMSG_WARN,
+               "##### BACKOUT #####   %s v: %d sc:%d lrl: %d odh:%d bdb:%p\n",
+               db->dbname, db->version, db->instant_schema_change, db->lrl,
+               db->odh, db->handle);
+    }
+
+    FREE_ARRS;
+
+    return -1;
 
 failed:
     /* TODO why do we do this stuff if we're just going to clean_exit()? */

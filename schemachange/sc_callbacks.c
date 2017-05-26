@@ -678,7 +678,7 @@ int scdone_callback(const char table[], scdone_t type)
     }
 
     set_odh_options(db);
-    db->tableversion = table_version_select(db);
+    db->tableversion = table_version_select(db, NULL);
 
     /* Make sure to add a version 1 schema for instant-schema change tables */
     if (add_new_db && db->odh && db->instant_schema_change) {

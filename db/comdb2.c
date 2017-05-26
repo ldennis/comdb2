@@ -6440,7 +6440,7 @@ static void load_dbstore_tableversion(struct dbenv *dbenv)
         struct db *db = dbenv->dbs[i];
         update_dbstore(db);
 
-        db->tableversion = table_version_select(db);
+        db->tableversion = table_version_select(db, NULL);
         if (db->tableversion == -1) {
             logmsg(LOGMSG_ERROR, "Failed reading table version\n");
         }
@@ -8808,20 +8808,30 @@ void delete_db(char *db_name)
     pthread_rwlock_unlock(&thedb_lock);
 }
 
-void replace_db(struct db *p_db)
+void replace_db(struct db *p_db, int add)
 {
     int idx;
 
-    if ((idx = getdbidxbyname(p_db->dbname)) < 0) {
+    pthread_rwlock_wrlock(&thedb_lock);
+    idx = getdbidxbyname(p_db->dbname);
+    if (!add && idx < 0) {
         logmsg(LOGMSG_FATAL, "%s: failed to find db for replacement: %s\n", __func__,
                 p_db->dbname);
         exit(1);
+    }
+
+    if (idx < 0) {
+       thedb->dbs =
+           realloc(thedb->dbs, (thedb->num_dbs + 1) * sizeof(struct db *));
+       idx = thedb->num_dbs;
+       thedb->num_dbs++;
     }
 
     p_db->dbnum = thedb->dbs[idx]->dbnum; /* save dbnum since we can't load if
                                          * from the schema anymore */
     p_db->dbs_idx = idx;
     thedb->dbs[idx] = p_db;
+    pthread_rwlock_unlock(&thedb_lock);
 }
 
 void epoch2a(int epoch, char *buf, size_t buflen)
