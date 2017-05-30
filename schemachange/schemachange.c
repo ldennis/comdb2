@@ -126,8 +126,12 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
         if (!s->partialuprecs)
             logmsg(LOGMSG_DEBUG, "Executing ASYNCHRONOUSLY\n");
         pthread_t tid;
-        rc = pthread_create(&tid, &gbl_pthread_attr_detached,
-                            (void *(*)(void *))do_schema_change_tran, arg);
+        if (trans)
+            rc = pthread_create(&tid, &gbl_pthread_attr_detached,
+                                (void *(*)(void *))do_schema_change_tran, arg);
+        else
+            rc = pthread_create(&tid, &gbl_pthread_attr_detached,
+                                (void *(*)(void *))do_schema_change, s);
         if (rc) {
             logmsg(LOGMSG_ERROR, "start_schema_change:pthread_create rc %d %s\n", rc,
                     strerror(errno));

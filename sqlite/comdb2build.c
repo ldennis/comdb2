@@ -529,7 +529,10 @@ void comdb2AlterTable(
     if (authenticateSC(sc->table, pParse))
         goto out;
 
-    comdb2WriteTransaction(pParse);
+    if (dryrun)
+        v->readOnly = 0;
+    else
+        comdb2WriteTransaction(pParse);
     sc->alteronly = 1;
     sc->nothrevent = 1;
     sc->live = 1;
