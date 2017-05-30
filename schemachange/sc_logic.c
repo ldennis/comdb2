@@ -1064,13 +1064,16 @@ int backout_schema_change(struct ireq *iq)
 {
     struct schema_change_type *s = iq->sc;
     mark_schemachange_over(s->table);
+    sc_set_running(0, sc_seed, gbl_mynode, time(NULL));
     if (s->addonly) {
+        delete_temp_table(iq, s->db);
         delete_db(s->table);
         create_sqlmaster_records(NULL);
         create_master_tables();
     }
     else {
         reload_db_tran(s->db, NULL);
+        sc_del_unused_files(s->db);
     }
     return 0;
 }
