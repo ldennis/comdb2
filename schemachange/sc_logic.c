@@ -466,6 +466,7 @@ int do_schema_change_tran(sc_arg_t *arg)
     }
 
     struct schema_change_type *s = iq->sc;
+    s->iq = iq;
     enum thrtype oldtype = prepare_sc_thread(s);
     int rc = SC_OK;
 

@@ -506,6 +506,9 @@ struct sqlclntstate {
     char fingerprint[16];
     int ncontext;
     char **context;
+
+    hash_t *ddl_tables;
+    hash_t *dml_tables;
 };
 
 /* Query stats. */

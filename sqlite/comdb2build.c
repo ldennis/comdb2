@@ -356,6 +356,10 @@ static int comdb2SqlSchemaChange(OpFunc *f)
     struct schema_change_type *s = (struct schema_change_type*)f->arg;
     thd->sqlclntstate->osql.long_request = 1;
     f->rc = osql_schemachange_logic(s, thd);
+    if (f->rc == SQLITE_DDL_MISUSE)
+        f->errorMsg = "Transactional DDL Error: Overlapping Tables";
+    else if (f->rc)
+        f->errorMsg = "Transactional DDL Error: Internal Errors";
     return f->rc;
 }
 

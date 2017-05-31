@@ -267,6 +267,8 @@ static inline int convert_server_record_cachedmap(
     if (rc) {
         convert_failure_reason_str(&reason, table, from->tag, to->tag, err,
                                    sizeof(err));
+        if (s->iq)
+            reqerrstr(s->iq, ERR_SC, "cannot convert data %s", err);
         sc_errf(s, "convert_server_record_cachedmap: cannot convert data %s\n",
                 err);
         return rc;
@@ -291,6 +293,8 @@ static int convert_server_record_blobs(const void *inbufp, const char *from_tag,
     if (rc) {
         convert_failure_reason_str(&reason, db->table, from_tag, db->tag, err,
                                    sizeof(err));
+        if (s->iq)
+            reqerrstr(s->iq, ERR_SC, "cannot convert data %s", err);
         sc_errf(s, "convert_server_record_blobs: cannot convert data %s\n",
                 err);
         return 1;
@@ -866,21 +870,41 @@ err: /*if (is_schema_change_doomed())*/
             return 1;
         }
 
+        if (data->s->iq)
+            reqerrstr(
+                data->s->iq, ERR_SC,
+                "Could not add duplicate entry in index %d rrn %d genid 0x%llx",
+                ixfailnum, rrn, genid);
         sc_errf(data->s, "Could not add duplicate entry in index %d "
                          "rrn %d genid 0x%llx\n",
                 ixfailnum, rrn, genid);
         return -2;
     } else if (rc == ERR_CONSTR) {
+        if (data->s->iq)
+            reqerrstr(
+                data->s->iq, ERR_SC,
+                "Error verifying constraints changed rrn %d genid 0x%llx",
+                rrn, genid);
         sc_errf(data->s, "Error verifying constraints changed!"
                          " rrn %d genid 0x%llx\n",
                 rrn, genid);
         return -2;
     } else if (rc == ERR_VERIFY_PI) {
+        if (data->s->iq)
+            reqerrstr(
+                data->s->iq, ERR_SC,
+                "Error verifying partial indexes rrn %d genid 0x%llx",
+                rrn, genid);
         sc_errf(data->s, "Error verifying partial indexes!"
                          " rrn %d genid 0x%llx\n",
                 rrn, genid);
         return -2;
     } else if (rc != 0) {
+        if (data->s->iq)
+            reqerrstr(
+                data->s->iq, ERR_SC,
+                "Error adding record rc %d rrn %d genid 0x%llx",
+                rc, rrn, genid);
         sc_errf(data->s, "Error adding record rcode %d opfailcode %d "
                          "ixfailnum %d rrn %d genid 0x%llx\n",
                 rc, opfailcode, ixfailnum, rrn, genid);

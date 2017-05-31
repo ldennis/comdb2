@@ -123,6 +123,7 @@ struct schema_change_type {
     int dbnum;
     int finalize; /* Whether the schema change should be committed */
 
+    struct ireq *iq;
     void *tran; /* transactional schemachange */
     struct schema_change_type *sc_next;
     struct llog_scdone *scdone;
