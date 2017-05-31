@@ -966,11 +966,11 @@ static int osql_send_usedb_logic_int(char *tablename, struct sqlclntstate *clnt,
     char *tblname = strdup(tablename);
     void strupper(char *c);
     strupper(tblname);
-    if (hash_find_readonly(clnt->ddl_tables, tblname)) {
+    if (clnt->ddl_tables && hash_find_readonly(clnt->ddl_tables, tblname)) {
         free(tblname);
         return SQLITE_DDL_MISUSE;
     }
-    if (!hash_find_readonly(clnt->dml_tables, tblname))
+    if (clnt->dml_tables && !hash_find_readonly(clnt->dml_tables, tblname))
         hash_add(clnt->dml_tables, tblname);
     else
         free(tblname);
@@ -1649,15 +1649,20 @@ int osql_schemachange_logic(struct schema_change_type *sc,
     char *tblname = strdup(sc->table);
     void strupper(char *c);
     strupper(tblname);
-    if (hash_find_readonly(clnt->dml_tables, tblname)) {
+    if (clnt->dml_tables && hash_find_readonly(clnt->dml_tables, tblname)) {
         free(tblname);
         return SQLITE_DDL_MISUSE;
     }
-    if (hash_find_readonly(clnt->ddl_tables, tblname)) {
+    if (clnt->ddl_tables) {
+        if (hash_find_readonly(clnt->ddl_tables, tblname)) {
+            free(tblname);
+            return SQLITE_DDL_MISUSE;
+        }
+        else
+            hash_add(clnt->ddl_tables, tblname);
+    } else {
         free(tblname);
-        return SQLITE_DDL_MISUSE;
     }
-    hash_add(clnt->ddl_tables, tblname);
 
     // At this moment I have no idea of what to do at any other transaction
     // level
