@@ -615,7 +615,6 @@ int scdone_callback(const char table[], scdone_t type)
     if (type == setcompr) {
         logmsg(LOGMSG_INFO, "Replicant setting compression flags for table:%s\n", table);
     } else if (type == add && add_new_db) {
-        printf("Replicant adding table:%s\n", table);
         logmsg(LOGMSG_INFO, "Replicant adding table:%s\n", table);
         if (add_table_to_environment(table_copy, csc2text, NULL, NULL, NULL)) {
             logmsg(LOGMSG_FATAL, "%s: error adding table "

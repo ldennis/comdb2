@@ -648,7 +648,7 @@ int resume_schema_change(void)
             **   \__\___|_| |_| |_| .__/
             **                    |_|
             */
-            if (1 || scabort) {
+            if (scabort) {
                 system("figlet force scabort");
                 logmsg(LOGMSG_WARN, "Cancelling schema change\n");
                 rc = unlink(abort_filename);
