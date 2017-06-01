@@ -331,7 +331,7 @@ int do_alter_table_int(struct ireq *iq, tran_type *tran)
         return SC_TABLE_DOESNOT_EXIST;
     }
 
-    set_schemachange_options(s, db, &scinfo);
+    set_schemachange_options_tran(s, db, &scinfo, tran);
 
     if ((rc = check_option_coherency(s, db, &scinfo)))
         return rc;
@@ -523,7 +523,7 @@ int do_alter_table_int(struct ireq *iq, tran_type *tran)
      * blobstripe_genid. */
     transfer_db_settings(db, newdb);
 
-    get_db_datacopy_odh(db, &datacopy_odh);
+    get_db_datacopy_odh_tran(db, &datacopy_odh, tran);
     if (s->force_rebuild ||           /* we're first to set */
         newdb->instant_schema_change) /* we're doing instant sc*/
     {

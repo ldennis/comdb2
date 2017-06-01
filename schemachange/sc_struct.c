@@ -693,25 +693,25 @@ void print_schemachange_info(struct schema_change_type *s, struct db *db,
     }
 }
 
-void set_schemachange_options(struct schema_change_type *s, struct db *db,
-                              struct scinfo *scinfo)
+void set_schemachange_options_tran(struct schema_change_type *s, struct db *db,
+                                   struct scinfo *scinfo, tran_type *tran)
 {
     int rc;
 
     /* Get properties from meta */
-    rc = get_db_compress(db, &scinfo->olddb_compress);
+    rc = get_db_compress_tran(db, &scinfo->olddb_compress, tran);
     if (rc)
         scinfo->olddb_compress = 0;
 
-    rc = get_db_compress_blobs(db, &scinfo->olddb_compress_blobs);
+    rc = get_db_compress_blobs_tran(db, &scinfo->olddb_compress_blobs, tran);
     if (rc)
         scinfo->olddb_compress_blobs = 0;
 
-    rc = get_db_inplace_updates(db, &scinfo->olddb_inplace_updates);
+    rc = get_db_inplace_updates_tran(db, &scinfo->olddb_inplace_updates, tran);
     if (rc)
         scinfo->olddb_inplace_updates = 0;
 
-    rc = get_db_instant_schema_change(db, &scinfo->olddb_instant_sc);
+    rc = get_db_instant_schema_change_tran(db, &scinfo->olddb_instant_sc, tran);
     if (rc)
         scinfo->olddb_instant_sc = 0;
 
@@ -730,6 +730,12 @@ void set_schemachange_options(struct schema_change_type *s, struct db *db,
 
     if (s->instant_sc == -1)
         s->instant_sc = scinfo->olddb_instant_sc;
+}
+
+void set_schemachange_options(struct schema_change_type *s, struct db *db,
+                              struct scinfo *scinfo)
+{
+    return set_schemachange_options_tran(s, db, scinfo, NULL);
 }
 
 int print_status(struct schema_change_type *s)
