@@ -20,7 +20,7 @@
 #include "whereInt.h"
 
 /* COMDB2 MODIFICATION */
-int sqlite3WhereTrace = 0;
+int sqlite3WhereTrace = 0xffff;
 
 /* Forward declaration of methods */
 static int whereLoopResize(sqlite3*, WhereLoop*, int);
@@ -3992,7 +3992,11 @@ static int wherePathSolver(WhereInfo *pWInfo, LogEst nRowEst){
                 pWInfo, nRowEst, nOrderBy, isOrdered
             );
           }
-          rCost = sqlite3LogEstAdd(rUnsorted, aSortCost[isOrdered]);
+          extern int gbl_sqlite_sortcost;
+          if( gbl_sqlite_sortcost )
+            rCost = sqlite3LogEstAdd(rUnsorted, aSortCost[isOrdered]);
+          else
+            rCost = rUnsorted;
 
           WHERETRACE(0x002,
               ("---- sort cost=%-3d (%d/%d) increases cost %3d to %-3d\n",

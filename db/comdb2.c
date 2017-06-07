@@ -161,6 +161,7 @@ int gbl_largepages;
 int gbl_llmeta_open = 0;
 
 int gbl_sqlite_sortermult = 1;
+int gbl_sqlite_sortcost = 1;
 
 int gbl_sqlite_sorter_mem = 300 * 1024 * 1024; /* 300 meg */
 

@@ -5592,6 +5592,12 @@ int process_command(struct dbenv *dbenv, char *line, int lline, int st)
         gbl_goslow = 0;
     } else if (tokcmp(tok, ltok, "logmsg") == 0) {
         logmsg_process_message(line, lline);
+    } else if (tokcmp(tok, ltok, "sortcost") == 0) {
+        extern int gbl_sqlite_sortcost;
+        gbl_sqlite_sortcost = 1;
+    } else if (tokcmp(tok, ltok, "nosortcost") == 0) {
+        extern int gbl_sqlite_sortcost;
+        gbl_sqlite_sortcost = 0;
     } else {
         logmsg(LOGMSG_ERROR, "unknown command <%.*s>\n", ltok, tok);
     }

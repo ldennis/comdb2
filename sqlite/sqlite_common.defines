@@ -40,3 +40,4 @@ SQLITE_FLAGS=                           \
 -DSQLITE_ENABLE_JSON1                   \
 -DSQLITE_CORE=1                         \
 -DSQLITE_OMIT_TRUNCATE_OPTIMIZATION     \
+-DWHERETRACE_ENABLED                    \
