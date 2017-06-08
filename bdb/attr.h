@@ -352,7 +352,7 @@ DEF_ATTR(PLANNER_WARN_ON_DISCREPANCY, planner_warn_on_discrepancy, BOOLEAN, 0)
 DEF_ATTR(PLANNER_EFFORT, planner_effort, QUANTITY, 1)
 DEF_ATTR(SHOW_COST_IN_LONGREQ, show_cost_in_longreq, BOOLEAN, 1)
 /* Delay restarting SC by this many seconds from db up*/
-DEF_ATTR(SC_RESTART_SEC, sc_restart_sec, QUANTITY, 60)
+DEF_ATTR(SC_RESTART_SEC, sc_restart_sec, QUANTITY, 0)
 /* Save to llmeta every n-th genid for index only rebuilds */
 DEF_ATTR(INDEXREBUILD_SAVE_EVERY_N, indexrebuild_save_every_n, QUANTITY, 1)
 /* decrease number of SC threads on DEADLOCK -- way to have sc backoff */

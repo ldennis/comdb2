@@ -1666,9 +1666,16 @@ int osql_schemachange_logic(struct schema_change_type *sc,
 
     // At this moment I have no idea of what to do at any other transaction
     // level
-    if (1 /*thd->sqlclntstate->dbtran.mode == TRANLEVEL_OSQL*/)
+    if (1 /*thd->sqlclntstate->dbtran.mode == TRANLEVEL_OSQL*/) {
+        rc = osql_save_schemachange(thd, sc);
+        if (rc) {
+            logmsg(LOGMSG_ERROR,
+                   "%s:%d %s - failed to cache socksql schemachange rc=%d\n",
+                   __FILE__, __LINE__, __func__, rc);
+        }
         return osql_send_schemachange(host, rqid, thd->sqlclntstate->osql.uuid,
                                       sc, NET_OSQL_BLOCK_RPL_UUID, osql->logsb);
+    }
     else if (thd->sqlclntstate->dbtran.mode == TRANLEVEL_SOSQL) {
         return -1;
     } else

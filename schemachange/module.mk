@@ -17,7 +17,8 @@ schemachange/sc_records.o	\
 schemachange/sc_schema.o	\
 schemachange/sc_stripes.o	\
 schemachange/sc_struct.o	\
-schemachange/sc_util.o
+schemachange/sc_util.o      \
+db/comdb2uuid.o
 
 sc_CPPFLAGS+=$(SQLITE_FLAGS) \
 -I.						\

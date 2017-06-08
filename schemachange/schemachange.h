@@ -125,6 +125,9 @@ struct schema_change_type {
 
     struct ireq *iq;
     void *tran; /* transactional schemachange */
+    unsigned long long rqid;
+    uuid_t uuid;
+
     struct schema_change_type *sc_next;
     struct llog_scdone *scdone;
 

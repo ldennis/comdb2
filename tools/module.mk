@@ -7,7 +7,7 @@ tools_INCLUDE:=-I$(SRCHOME)/crc32c -I$(SRCHOME)/bbinc			\
 -I$(SRCHOME)/dlmalloc -I$(SRCHOME)/sockpool -I$(SRCHOME)/cson		\
 $(OPTBBINCLUDE)
 
-tools_SYSLIBS=$(BBSTATIC) -lprotobuf-c -lssl -lcrypto -llz4 $(BBDYN)	\
+tools_SYSLIBS=$(BBSTATIC) -lprotobuf-c -lssl -lcrypto -llz4 -luuid $(BBDYN)	\
 -lpthread -lrt -lm -lz $(ARCHLIBS)
 
 tools_CPPFLAGS:=$(tools_INCLUDE) $(CPPFLAGS)

@@ -158,7 +158,7 @@ int do_drop_table(struct ireq *iq, tran_type *tran)
        For full operation they also need to be set in the meta tables.
        However the new db gets its meta table assigned further down,
        so we can't set meta options until we're there. */
-    set_bdb_option_flags(newdb->handle, s->headers, s->ip_updates,
+    set_bdb_option_flags(newdb, s->headers, s->ip_updates,
                          newdb->instant_schema_change, newdb->version,
                          s->compress, s->compress_blobs, datacopy_odh);
 

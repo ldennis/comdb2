@@ -378,6 +378,8 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq, tran_type *tran,
 {
     int rc;
     struct schema_change_type *s = iq->sc;
+    s->rqid = iq->sorese.rqid;
+    comdb2uuidcpy(s->uuid, iq->sorese.uuid);
     if (type != alter)
         wrlock_schema_lk();
     set_original_tablename(s);
@@ -579,6 +581,8 @@ int resume_schema_change(void)
                         " schema change\n");
         return -1;
     }
+    /* no resume for transactional ddl */
+    return 0;
 
     /* if a schema change is currently running don't try to resume one */
     pthread_mutex_lock(&schema_change_in_progress_mutex);

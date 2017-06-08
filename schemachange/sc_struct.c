@@ -115,6 +115,7 @@ size_t schemachange_packed_size(struct schema_change_type *s)
     s->newcsc2_len = (s->newcsc2) ? strlen(s->newcsc2) + 1 : 0;
 
     s->packed_len =
+        sizeof(s->rqid) + sizeof(s->uuid) +
         sizeof(s->type) + sizeof(s->table_len) + s->table_len +
         sizeof(s->fname_len) + s->fname_len + sizeof(s->aname_len) +
         s->aname_len + sizeof(s->avgitemsz) + sizeof(s->fastinit) +
@@ -164,6 +165,10 @@ void *buf_put_schemachange(struct schema_change_type *s, void *p_buf,
 
     if (p_buf >= p_buf_end)
         return NULL;
+
+    p_buf = buf_put(&s->rqid, sizeof(s->rqid), p_buf, p_buf_end);
+
+    p_buf = buf_no_net_put(&s->uuid, sizeof(s->uuid), p_buf, p_buf_end);
 
     p_buf = buf_put(&s->type, sizeof(s->type), p_buf, p_buf_end);
 
@@ -314,6 +319,10 @@ void *buf_get_schemachange(struct schema_change_type *s, void *p_buf,
         return NULL;
 
     bzero(s, sizeof(struct schema_change_type));
+
+    p_buf = (uint8_t *)buf_get(&s->rqid, sizeof(s->rqid), p_buf, p_buf_end);
+
+    p_buf = (uint8_t *)buf_no_net_get(&s->uuid, sizeof(s->uuid), p_buf, p_buf_end);
 
     p_buf = (uint8_t *)buf_get(&s->type, sizeof(s->type), p_buf, p_buf_end);
 

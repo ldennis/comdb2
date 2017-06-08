@@ -59,7 +59,7 @@
 #define TEST_RECOM
 #endif
 
-int gbl_master_swing_osql_verbose = 0;
+int gbl_master_swing_osql_verbose = 1;
 
 int g_osql_ready = 0;
 int tran2netreq(int dbtran)

@@ -176,6 +176,8 @@ int sc_set_running(int running, uint64_t seed, char *host, time_t time)
     }
     ctrace("sc_set_running: running=%d seed=0x%llx\n", running,
            (unsigned long long)seed);
+    logmsg(LOGMSG_INFO, "sc_set_running: running=%d seed=0x%llx\n", running,
+           (unsigned long long)seed);
     pthread_mutex_unlock(&schema_change_in_progress_mutex);
     return 0;
 }

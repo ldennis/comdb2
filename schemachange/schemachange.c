@@ -47,10 +47,79 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
         return SC_NOT_MASTER;
     }
 
+    if (s->addonly || s->drop_table || s->fastinit || s->alteronly) {
+        int bdberr;
+        void *packed_sc_data = NULL;
+        size_t packed_sc_data_len;
+        struct schema_change_type *stored_sc = NULL;
+
+        if (bdb_get_in_schema_change(s->table, &packed_sc_data,
+                                     &packed_sc_data_len, &bdberr) ||
+            bdberr != BDBERR_NOERROR) {
+            logmsg(LOGMSG_WARN, "%s: failed to discover "
+                   "whether table: %s is in the middle of a schema change\n",
+                   __func__, s->table);
+        }
+        if (packed_sc_data) {
+            stored_sc = malloc(sizeof(struct schema_change_type));
+            if (!stored_sc) {
+                logmsg(LOGMSG_ERROR, "%s: ran out of memory\n", __func__);
+                free(packed_sc_data);
+                free_schema_change_type(s);
+                return -1;
+            }
+            if (unpack_schema_change_type(stored_sc, packed_sc_data,
+                                          packed_sc_data_len)) {
+                logmsg(LOGMSG_ERROR, "%s: failed to unpack sc\n", __func__);
+                free(packed_sc_data);
+                free(stored_sc);
+                free_schema_change_type(s);
+                return -1;
+            }
+            free(packed_sc_data);
+            packed_sc_data = NULL;
+            rc = bdb_set_in_schema_change(NULL, stored_sc->table, NULL, 0,
+                                          &bdberr);
+            if (rc)
+                logmsg(LOGMSG_ERROR,
+                       "%s: failed to cancel resuming schema change %d %d\n",
+                       __func__, rc, bdberr);
+            uuidstr_t us;
+            comdb2uuidstr(stored_sc->uuid, us);
+            logmsg(LOGMSG_INFO, "Found ongoing schema change: rqid [%llx %s] "
+                   "table %s, add %d, drop %d, fastinit %d, alter %d\n",
+                   stored_sc->rqid, us, stored_sc->table, stored_sc->addonly,
+                   stored_sc->drop_table, stored_sc->fastinit,
+                   stored_sc->alteronly);
+        } else {
+            logmsg(LOGMSG_INFO, "No ongoing schema change of table %s\n",
+                   s->table);
+        }
+        if (stored_sc && !stored_sc->fulluprecs && !stored_sc->partialuprecs &&
+            stored_sc->type == DBTYPE_TAGGED_TABLE) {
+            if (stored_sc->rqid == iq->sorese.rqid &&
+                comdb2uuidcmp(stored_sc->uuid, iq->sorese.uuid) == 0) {
+                s->rqid = stored_sc->rqid;
+                comdb2uuidcpy(s->uuid, stored_sc->uuid);
+                s->resume = 1;
+                uuidstr_t us;
+                comdb2uuidstr(s->uuid, us);
+                logmsg(LOGMSG_INFO, "Resuming schema change: rqid [%llx %s] "
+                       "table %s, add %d, drop %d, fastinit %d, alter %d\n",
+                       s->rqid, us, s->table, s->addonly, s->drop_table,
+                       s->fastinit, s->alteronly);
+            }
+        }
+        free_schema_change_type(stored_sc);
+    }
+
     strcpy(s->original_master_node, gbl_mynode);
     unsigned long long seed;
-    if (trans && s->tran == trans && iq->sc_seed)
+    if (trans && s->tran == trans && iq->sc_seed) {
         seed = iq->sc_seed;
+        logmsg(LOGMSG_INFO, "Starting schema change: "
+               "transactionally reuse seed 0x%llx\n", seed);
+    }
     else if (s->resume) {
         logmsg(LOGMSG_INFO, "Resuming schema change: fetching seed\n");
         if ((rc = fetch_schema_change_seed(s, thedb, &seed))) {
@@ -58,11 +127,13 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
             free_schema_change_type(s);
             return rc;
         }
-        logmsg(LOGMSG_INFO, "Resuming schema change: fetched seed 0x%llx\n", seed);
+        logmsg(LOGMSG_INFO, "Resuming schema change: fetched seed 0x%llx\n",
+               seed);
     } else {
         seed = get_genid(thedb->bdb_env, 0);
         unsigned int *iptr = (unsigned int *) &seed;
         iptr[1] = htonl(crc32c(gbl_mynode, strlen(gbl_mynode)));
+        logmsg(LOGMSG_INFO, "Starting schema change: new seed 0x%llx\n", seed);
     }
 
     rc = sc_set_running(1, seed, gbl_mynode, time(NULL));
@@ -104,8 +175,8 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
         if (rc) {
             logmsg(LOGMSG_ERROR, "Couldn't save schema change seed\n");
         }
-        iq->sc_seed = sc_seed;
     }
+    iq->sc_seed = sc_seed;
 
     sc_arg_t *arg = malloc(sizeof(sc_arg_t));
     arg->trans = trans;
