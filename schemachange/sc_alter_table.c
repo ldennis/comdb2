@@ -547,10 +547,10 @@ int do_alter_table_int(struct ireq *iq, tran_type *tran)
         return -1;
     }
 
-    gbl_sc_resume_start = 0; // for resuming SC/toblock_main: pointers are set
     sc_live = 1;
     db->sc_from = s->db = db;
     db->sc_to = s->newdb = newdb;
+    gbl_sc_resume_start = 0; // for resuming SC/toblock_main: pointers are set
     MEMORY_SYNC;
 
     reset_sc_stat();
@@ -721,10 +721,10 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
 
         /*update necessary versions and delete unnecessary files from newdb*/
         if(gbl_use_plan && newdb->plan) {
-            logmsg(LOGMSG_INFO, " Updating versions with plan");
+            logmsg(LOGMSG_INFO, " Updating versions with plan\n");
             rc = switch_versions_with_plan(transac, db, newdb);
         } else {
-            logmsg(LOGMSG_INFO, " Updating versions without plan");
+            logmsg(LOGMSG_INFO, " Updating versions without plan\n");
             rc = bdb_commit_temp_file_version_all(
                     newdb->handle, transac, &bdberr) /*set all metapointers to new files*/;
         }
@@ -867,7 +867,9 @@ backout:
         newdb = newdbs[indx];
 
         backout_constraint_pointers(newdb, db);
+#if 0 /* bp sc backout deals with this */
         delete_temp_table(iq, newdb);
+#endif
         change_schemas_recover(/*s->table*/db->dbname);
 
         logmsg(LOGMSG_WARN,

@@ -3692,14 +3692,14 @@ int bdb_clear_high_genid(
                                            * it is NULL a new transaction will be
                                            * created internally for each stripe */
     const char *db_name, int num_stripes, /* number of stripes to clear */
-    int *bdberr)
+    int setmax, int *bdberr)
 {
     int stripe;
 
     /* clear out the highest genid saved for each stripe */
     for (stripe = 0; stripe < num_stripes; stripe++) {
-        if (bdb_set_high_genid_int(input_trans, db_name, stripe, 0ULL /*genid*/,
-                                   bdberr) &&
+        if (bdb_set_high_genid_int(input_trans, db_name, stripe,
+                                   setmax ? -1ULL : 0ULL, bdberr) &&
             *bdberr != BDBERR_NOERROR)
             return -1;
     }

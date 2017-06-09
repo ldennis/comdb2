@@ -203,8 +203,8 @@ int init_sc_genids(struct db *db, struct schema_change_type *s)
     if (!s->resume) {
         /* if we may have to resume this schema change, clear the progress in
          * llmeta */
-        if (bdb_clear_high_genid(NULL, db->dbname,
-                                 db->dtastripe, &bdberr) ||
+        if (bdb_clear_high_genid(NULL /*input_trans*/, db->dbname,
+                                 db->dtastripe, 0, &bdberr) ||
             bdberr != BDBERR_NOERROR) {
             logmsg(LOGMSG_ERROR, "init_sc_genids: failed to clear high "
                                  "genids\n");
@@ -513,9 +513,29 @@ static int convert_record(struct convert_record_data *data)
             // bdb_dump_active_locks(data->to->handle, stdout);
             data->sc_genids[data->stripe] = -1ULL;
 
+            int usellmeta = 0;
+            if (!data->to->plan) {
+                usellmeta = 1; /* new dta does not have old genids */
+            } else if (data->to->plan->dta_plan) {
+                usellmeta = 0; /* the genid is in new dta */
+            } else {
+                usellmeta = 1; /* dta is not being built */
+            }
+            rc = 0;
+            if (usellmeta && !is_dta_being_rebuilt(data->to->plan)) {
+                int bdberr;
+                rc = bdb_clear_high_genid(NULL, data->to->dbname,
+                                          data->to->dtastripe, 1, &bdberr);
+                if (rc != 0) {
+                    if (bdberr == BDBERR_DEADLOCK)
+                        rc = RC_INTERNAL_RETRY;
+                    else
+                        rc = ERR_INTERNAL;
+                }
+            }
             sc_printf(data->s, "finished stripe %d, setting genid %llx\n",
                       data->stripe, data->sc_genids[data->stripe]);
-            return 0;
+            return rc;
         } else if (rc == RC_INTERNAL_RETRY) {
             trans_abort(&data->iq, data->trans);
             data->trans = NULL;
@@ -1202,6 +1222,12 @@ int convert_all_records(struct db *from, struct db *to,
             threadData[ii] = data;
             threadData[ii].stripe = ii;
 
+            if (sc_genids[ii] == -1ULL) {
+                sc_printf(threadData[ii].s, "stripe %d was done\n",
+                          threadData[ii].stripe);
+                continue;
+            }
+
             sc_printf(threadData[ii].s, "starting thread for stripe: %d\n",
                       threadData[ii].stripe);
 
@@ -1225,6 +1251,9 @@ int convert_all_records(struct db *from, struct db *to,
         /* wait for all threads to complete */
         for (ii = 0; ii < gbl_dtastripe; ++ii) {
             void *ret;
+
+            if (sc_genids[ii] == -1ULL)
+                continue;
 
             /* if the threadid is NULL, skip this one */
             if (!threadData[ii].tid) {

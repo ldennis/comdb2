@@ -35,6 +35,8 @@ int gbl_default_livesc = 1;
 int gbl_default_plannedsc = 1;
 int gbl_default_sc_scanmode = SCAN_PARALLEL;
 
+struct schema_change_type *sc_resuming = NULL;
+
 /* Throttle settings, which you can change with message traps.  Note that if
  * you have gbl_sc_usleep=0, the important live writer threads never get to
  * run. */

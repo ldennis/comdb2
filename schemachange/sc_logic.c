@@ -83,6 +83,10 @@ static int mark_sc_in_llmeta_tran(struct schema_change_type *s, void *trans)
     int rc = SC_OK;
     void *packed_sc_data = NULL;
     size_t packed_sc_data_len;
+    uuidstr_t us;
+    comdb2uuidstr(s->uuid, us);
+    logmsg(LOGMSG_INFO, "%s: table '%s' rqid [%llx %s]\n", __func__, s->table,
+           s->rqid, us);
     if (pack_schema_change_type(s, &packed_sc_data, &packed_sc_data_len)) {
         sc_errf(s, "could not pack the schema change data for storage in "
                    "low level meta table\n");
@@ -378,8 +382,14 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq, tran_type *tran,
 {
     int rc;
     struct schema_change_type *s = iq->sc;
-    s->rqid = iq->sorese.rqid;
-    comdb2uuidcpy(s->uuid, iq->sorese.uuid);
+
+    if (s->finalize_only) {
+        return s->sc_rc;
+    }
+    if (s->rqid == 0 && comdb2uuid_is_zero(s->uuid)) {
+        s->rqid = iq->sorese.rqid;
+        comdb2uuidcpy(s->uuid, iq->sorese.uuid);
+    }
     if (type != alter)
         wrlock_schema_lk();
     set_original_tablename(s);
@@ -387,8 +397,10 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq, tran_type *tran,
     if ((rc = mark_sc_in_llmeta_tran(s, NULL))) goto end; // non-tran ??
     propose_sc(s);
     rc = pre(iq, NULL); //non-tran ??
-    if (type == alter && master_downgrading(s))
+    if (type == alter && master_downgrading(s)) {
+        s->sc_rc = SC_MASTER_DOWNGRADE;
         return SC_MASTER_DOWNGRADE;
+    }
     if (rc) {
         mark_schemachange_over_tran(s->table, NULL); // non-tran ??
     } else if (s->finalize) {
@@ -397,6 +409,7 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq, tran_type *tran,
         rc = SC_COMMIT_PENDING;
     }
 end:
+    s->sc_rc = rc;
     if (type != alter)
         unlock_schema_lk();
     broadcast_sc_end(sc_seed);
@@ -469,6 +482,7 @@ int do_schema_change_tran(sc_arg_t *arg)
 
     struct schema_change_type *s = iq->sc;
     s->iq = iq;
+    pthread_mutex_lock(&s->mtx);
     enum thrtype oldtype = prepare_sc_thread(s);
     int rc = SC_OK;
 
@@ -502,8 +516,12 @@ int do_schema_change_tran(sc_arg_t *arg)
         rc = do_alter_stripes(s);
 
     reset_sc_thread(oldtype, s);
-    if (rc != SC_COMMIT_PENDING && rc != SC_MASTER_DOWNGRADE)
+    if (s->resume != SC_NEW_MASTER_RESUME && rc != SC_COMMIT_PENDING &&
+        rc != SC_MASTER_DOWNGRADE) {
+        pthread_mutex_unlock(&s->mtx);
         stop_and_free_sc(rc, s, 1 /*free_sc*/);
+    } else
+        pthread_mutex_unlock(&s->mtx);
 
     return rc;
 }
@@ -528,6 +546,7 @@ int finalize_schema_change_thd(struct ireq *iq, tran_type *trans)
     if (iq == NULL || iq->sc == NULL)
         abort();
     struct schema_change_type *s = iq->sc;
+    pthread_mutex_lock(&s->mtx);
     enum thrtype oldtype = prepare_sc_thread(s);
     int rc = SC_OK;
     int keep_sc_locked = iq->sc_locked;
@@ -564,6 +583,7 @@ int finalize_schema_change_thd(struct ireq *iq, tran_type *trans)
     }
 
     reset_sc_thread(oldtype, s);
+    pthread_mutex_unlock(&s->mtx);
 
     stop_and_free_sc(rc, s, 0 /*free_sc*/);
     return rc;
@@ -581,8 +601,6 @@ int resume_schema_change(void)
                         " schema change\n");
         return -1;
     }
-    /* no resume for transactional ddl */
-    return 0;
 
     /* if a schema change is currently running don't try to resume one */
     pthread_mutex_lock(&schema_change_in_progress_mutex);
@@ -592,6 +610,8 @@ int resume_schema_change(void)
     }
     pthread_mutex_unlock(&schema_change_in_progress_mutex);
 
+    extern struct schema_change_type *sc_resuming;
+    sc_resuming = NULL;
     for (i = 0; i < thedb->num_dbs; ++i) {
         int bdberr;
         void *packed_sc_data = NULL;
@@ -612,7 +632,7 @@ int resume_schema_change(void)
                    "schema change, resuming...\n",
                    thedb->dbs[i]->dbname);
 
-            s = malloc(sizeof(struct schema_change_type));
+            s = new_schemachange_type();
             if (!s) {
                 logmsg(LOGMSG_ERROR, "resume_schema_change: ran out of memory\n");
                 free(packed_sc_data);
@@ -668,24 +688,38 @@ int resume_schema_change(void)
 
             if (s->fulluprecs || s->partialuprecs) {
                 logmsg(LOGMSG_DEBUG, "%s: This was a table upgrade. Skipping...\n", __func__);
-                free(s);
-                return 0;
+                free_schema_change_type(s);
+                continue;
             }
             if(s->type != DBTYPE_TAGGED_TABLE) { /* see do_schema_change_thd()*/
                 logmsg(LOGMSG_ERROR, "%s: only type DBTYPE_TAGGED_TABLE can resume\n", __func__);
-                free(s);
-                return 0;
+                free_schema_change_type(s);
+                continue;
             }
 
             s->nothrevent = 0;
-            s->resume = 1; /* we are trying to resume this sc */
+            /* we are trying to resume this sc */
+            s->resume = SC_NEW_MASTER_RESUME;
+#if 0
             s->finalize = 1; /* finalize at the end of resume */
+#else
+            s->finalize = 0; /* wait for resubmit of bplog */
+#endif
 
             MEMORY_SYNC;
 
+            uuidstr_t us;
+            comdb2uuidstr(s->uuid, us);
+            logmsg(LOGMSG_INFO, "%s: resuming schema change: rqid [%llx %s] "
+                   "table %s, add %d, drop %d, fastinit %d, alter %d\n",
+                   __func__, s->rqid, us, s->table, s->addonly, s->drop_table,
+                   s->fastinit, s->alteronly);
             /* start the schema change back up */
             rc = start_schema_change(s);
-            if (rc != SC_OK && rc != SC_ASYNC) {
+            if (rc = SC_COMMIT_PENDING) {
+                s->sc_next = sc_resuming;
+                sc_resuming = s;
+            } else if (rc != SC_OK && rc != SC_ASYNC) {
                 return -1;
             }
 

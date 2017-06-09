@@ -47,70 +47,109 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
         return SC_NOT_MASTER;
     }
 
-    if (s->addonly || s->drop_table || s->fastinit || s->alteronly) {
-        int bdberr;
-        void *packed_sc_data = NULL;
-        size_t packed_sc_data_len;
-        struct schema_change_type *stored_sc = NULL;
+    extern struct schema_change_type *sc_resuming;
+    if (!s->resume && sc_resuming &&
+        (s->addonly || s->drop_table || s->fastinit || s->alteronly)) {
+        struct schema_change_type *last_sc = NULL;
+        struct schema_change_type *stored_sc = sc_resuming;
 
-        if (bdb_get_in_schema_change(s->table, &packed_sc_data,
-                                     &packed_sc_data_len, &bdberr) ||
-            bdberr != BDBERR_NOERROR) {
-            logmsg(LOGMSG_WARN, "%s: failed to discover "
-                   "whether table: %s is in the middle of a schema change\n",
-                   __func__, s->table);
-        }
-        if (packed_sc_data) {
-            stored_sc = malloc(sizeof(struct schema_change_type));
-            if (!stored_sc) {
-                logmsg(LOGMSG_ERROR, "%s: ran out of memory\n", __func__);
-                free(packed_sc_data);
-                free_schema_change_type(s);
-                return -1;
-            }
-            if (unpack_schema_change_type(stored_sc, packed_sc_data,
-                                          packed_sc_data_len)) {
-                logmsg(LOGMSG_ERROR, "%s: failed to unpack sc\n", __func__);
-                free(packed_sc_data);
-                free(stored_sc);
-                free_schema_change_type(s);
-                return -1;
-            }
-            free(packed_sc_data);
-            packed_sc_data = NULL;
-            rc = bdb_set_in_schema_change(NULL, stored_sc->table, NULL, 0,
-                                          &bdberr);
-            if (rc)
-                logmsg(LOGMSG_ERROR,
-                       "%s: failed to cancel resuming schema change %d %d\n",
-                       __func__, rc, bdberr);
-            uuidstr_t us;
-            comdb2uuidstr(stored_sc->uuid, us);
-            logmsg(LOGMSG_INFO, "Found ongoing schema change: rqid [%llx %s] "
-                   "table %s, add %d, drop %d, fastinit %d, alter %d\n",
-                   stored_sc->rqid, us, stored_sc->table, stored_sc->addonly,
-                   stored_sc->drop_table, stored_sc->fastinit,
-                   stored_sc->alteronly);
-        } else {
-            logmsg(LOGMSG_INFO, "No ongoing schema change of table %s\n",
-                   s->table);
-        }
-        if (stored_sc && !stored_sc->fulluprecs && !stored_sc->partialuprecs &&
-            stored_sc->type == DBTYPE_TAGGED_TABLE) {
-            if (stored_sc->rqid == iq->sorese.rqid &&
-                comdb2uuidcmp(stored_sc->uuid, iq->sorese.uuid) == 0) {
-                s->rqid = stored_sc->rqid;
-                comdb2uuidcpy(s->uuid, stored_sc->uuid);
-                s->resume = 1;
+        while (stored_sc) {
+            if (strcasecmp(stored_sc->table, s->table) == 0) {
                 uuidstr_t us;
-                comdb2uuidstr(s->uuid, us);
-                logmsg(LOGMSG_INFO, "Resuming schema change: rqid [%llx %s] "
+                comdb2uuidstr(stored_sc->uuid, us);
+                logmsg(LOGMSG_INFO, "Found ongoing schema change: rqid [%llx %s] "
                        "table %s, add %d, drop %d, fastinit %d, alter %d\n",
-                       s->rqid, us, s->table, s->addonly, s->drop_table,
-                       s->fastinit, s->alteronly);
+                       stored_sc->rqid, us, stored_sc->table, stored_sc->addonly,
+                       stored_sc->drop_table, stored_sc->fastinit,
+                       stored_sc->alteronly);
+                if (stored_sc->rqid == iq->sorese.rqid &&
+                    comdb2uuidcmp(stored_sc->uuid, iq->sorese.uuid) == 0) {
+                    if (last_sc)
+                        last_sc = stored_sc->sc_next;
+                    else
+                        sc_resuming = NULL;
+                    stored_sc->sc_next = NULL;
+                } else {
+                }
+                break;
             }
+
+            last_sc = stored_sc;
+            stored_sc = stored_sc->sc_next;
         }
-        free_schema_change_type(stored_sc);
+        if (stored_sc) {
+            stored_sc->tran = trans;
+            stored_sc->iq = iq;
+            free_schema_change_type(s);
+            s = stored_sc;
+            iq->sc = s;
+            pthread_mutex_lock(&s->mtx);
+            s->finalize_only = 1;
+            s->nothrevent = 1;
+            s->resume = SC_RESUME;
+            pthread_mutex_unlock(&s->mtx);
+            uuidstr_t us;
+            comdb2uuidstr(s->uuid, us);
+            logmsg(LOGMSG_INFO, "Resuming schema change: rqid [%llx %s] "
+                   "table %s, add %d, drop %d, fastinit %d, alter %d\n",
+                   s->rqid, us, s->table, s->addonly, s->drop_table,
+                   s->fastinit, s->alteronly);
+
+        } else {
+            int bdberr;
+            void *packed_sc_data = NULL;
+            size_t packed_sc_data_len;
+            if (bdb_get_in_schema_change(s->table, &packed_sc_data,
+                                         &packed_sc_data_len, &bdberr) ||
+                bdberr != BDBERR_NOERROR) {
+                logmsg(LOGMSG_WARN, "%s: failed to discover whether table: "
+                       "%s is in the middle of a schema change\n",
+                       __func__, s->table);
+            }
+            if (packed_sc_data) {
+                stored_sc = new_schemachange_type();
+                if (!stored_sc) {
+                    logmsg(LOGMSG_ERROR, "%s: ran out of memory\n", __func__);
+                    free(packed_sc_data);
+                    free_schema_change_type(s);
+                    return -1;
+                }
+                if (unpack_schema_change_type(stored_sc, packed_sc_data,
+                                              packed_sc_data_len)) {
+                    logmsg(LOGMSG_ERROR, "%s: failed to unpack sc\n", __func__);
+                    free(packed_sc_data);
+                    free(stored_sc);
+                    free_schema_change_type(s);
+                    return -1;
+                }
+                free(packed_sc_data);
+                packed_sc_data = NULL;
+                rc = bdb_set_in_schema_change(NULL, stored_sc->table, NULL, 0,
+                                              &bdberr);
+                if (rc)
+                    logmsg(LOGMSG_ERROR,
+                           "%s: failed to cancel resuming schema change %d %d\n",
+                           __func__, rc, bdberr);
+            }
+            if (stored_sc && !stored_sc->fulluprecs && !stored_sc->partialuprecs &&
+                stored_sc->type == DBTYPE_TAGGED_TABLE) {
+                if (stored_sc->rqid == iq->sorese.rqid &&
+                    comdb2uuidcmp(stored_sc->uuid, iq->sorese.uuid) == 0) {
+                    s->rqid = stored_sc->rqid;
+                    comdb2uuidcpy(s->uuid, stored_sc->uuid);
+                    s->resume = 1;
+                    uuidstr_t us;
+                    comdb2uuidstr(s->uuid, us);
+                    logmsg(LOGMSG_INFO, "Resuming schema change: rqid [%llx %s] "
+                           "table %s, add %d, drop %d, fastinit %d, alter %d\n",
+                           s->rqid, us, s->table, s->addonly, s->drop_table,
+                           s->fastinit, s->alteronly);
+                }
+                free_schema_change_type(stored_sc);
+            } else
+                logmsg(LOGMSG_INFO, "No ongoing schema change of table %s\n",
+                       s->table);
+        }
     }
 
     strcpy(s->original_master_node, gbl_mynode);
@@ -182,7 +221,7 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
     arg->trans = trans;
     arg->iq = iq;
 
-    if(s->resume) {
+    if(s->resume && s->alteronly && !s->finalize_only) {
         gbl_sc_resume_start = time_epochms();
     }
     /*
@@ -191,11 +230,11 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
     */
     if (s->nothrevent) {
         if (!s->partialuprecs)
-            logmsg(LOGMSG_DEBUG, "Executing SYNCHRONOUSLY\n");
+            logmsg(LOGMSG_INFO, "Executing SYNCHRONOUSLY\n");
         rc = do_schema_change_tran(arg);
     } else {
         if (!s->partialuprecs)
-            logmsg(LOGMSG_DEBUG, "Executing ASYNCHRONOUSLY\n");
+            logmsg(LOGMSG_INFO, "Executing ASYNCHRONOUSLY\n");
         pthread_t tid;
         if (trans)
             rc = pthread_create(&tid, &gbl_pthread_attr_detached,
@@ -296,7 +335,7 @@ int change_schema(char *table, char *fname, int odh,
 {
     struct schema_change_type *s;
 
-    s = malloc(sizeof(struct schema_change_type));
+    s = new_schemachange_type();
     if (!s) {
         logmsg(LOGMSG_ERROR, "%s: malloc failed\n", __func__);
         return -1;
@@ -317,7 +356,7 @@ int morestripe(struct dbenv *dbenvin, int newstripe, int blobstripe)
 {
     struct schema_change_type *s;
 
-    s = malloc(sizeof(struct schema_change_type));
+    s = new_schemachange_type();
     if (!s) {
         logmsg(LOGMSG_ERROR, "%s: malloc failed\n", __func__);
         return -1;
@@ -335,7 +374,7 @@ int create_queue(struct dbenv *dbenvin, char *queuename, int avgitem,
 {
     struct schema_change_type *s;
 
-    s = malloc(sizeof(struct schema_change_type));
+    s = new_schemachange_type();
     if (!s) {
         logmsg(LOGMSG_ERROR, "%s: malloc failed\n", __func__);
         return -1;
@@ -360,7 +399,7 @@ int fastinit_table(struct dbenv *dbenvin, char *table)
         return -1;
     }
 
-    s = malloc(sizeof(struct schema_change_type));
+    s = new_schemachange_type();
     if (!s) {
         logmsg(LOGMSG_ERROR, "%s: malloc failed\n", __func__);
         return -1;
@@ -773,7 +812,7 @@ int add_schema_change_tables()
                    "schema change, adding table...\n",
                    __func__, thedb->dbs[i]->dbname);
 
-            s = malloc(sizeof(struct schema_change_type));
+            s = new_schemachange_type();
             if (!s) {
                 logmsg(LOGMSG_ERROR, "%s: ran out of memory\n", __func__);
                 free(packed_sc_data);

@@ -23,7 +23,7 @@
 /************ SCHEMACHANGE TO BUF UTILITY FUNCTIONS
  * *****************************/
 
-void init_schemachange_type(struct schema_change_type *sc)
+struct schema_change_type *init_schemachange_type(struct schema_change_type *sc)
 {
     memset(sc, 0, sizeof(struct schema_change_type));
     sc->tran = NULL;
@@ -44,6 +44,11 @@ void init_schemachange_type(struct schema_change_type *sc)
     sc->dbnum = -1; /* -1 = not changing, anything else = set value */
     sc->original_master_node[0] = 0;
     listc_init(&sc->dests, offsetof(struct dest, lnk));
+    if (pthread_mutex_init(&sc->mtx, NULL)) {
+        free_schema_change_type(sc);
+        return NULL;
+    }
+    return sc;
 }
 
 struct schema_change_type *new_schemachange_type()
@@ -51,7 +56,7 @@ struct schema_change_type *new_schemachange_type()
     struct schema_change_type *sc =
         (struct schema_change_type *)malloc(sizeof(struct schema_change_type));
     if (sc != NULL)
-        init_schemachange_type(sc);
+        sc = init_schemachange_type(sc);
 
     return sc;
 }
@@ -81,6 +86,7 @@ void free_schema_change_type(struct schema_change_type *s)
         }
 
         free_dests(s);
+        pthread_mutex_destroy(&s->mtx);
 
         if (s->sb && s->must_close_sb)
             close_appsock(s->sb);

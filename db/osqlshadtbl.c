@@ -2681,7 +2681,7 @@ static int process_local_shadtbl_sc(struct sqlclntstate *clnt,
         packed_sc_data = bdb_temp_table_data(cur);
         packed_sc_data_len = bdb_temp_table_datasize(cur);
 
-        sc = malloc(sizeof(struct schema_change_type));
+        sc = new_schemachange_type();
         if (!sc) {
             logmsg(LOGMSG_ERROR, "%s: ran out of memory\n", __func__);
             return -1;
