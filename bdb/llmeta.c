@@ -3692,14 +3692,14 @@ int bdb_clear_high_genid(
                                            * it is NULL a new transaction will be
                                            * created internally for each stripe */
     const char *db_name, int num_stripes, /* number of stripes to clear */
-    int setmax, int *bdberr)
+    int *bdberr)
 {
     int stripe;
 
     /* clear out the highest genid saved for each stripe */
     for (stripe = 0; stripe < num_stripes; stripe++) {
-        if (bdb_set_high_genid_int(input_trans, db_name, stripe,
-                                   setmax ? -1ULL : 0ULL, bdberr) &&
+        if (bdb_set_high_genid_int(input_trans, db_name, stripe, 0ULL /*genid*/,
+                                   bdberr) &&
             *bdberr != BDBERR_NOERROR)
             return -1;
     }
@@ -3715,6 +3715,12 @@ int bdb_set_high_genid(tran_type *input_trans, const char *db_name,
 {
     return bdb_set_high_genid_int(input_trans, db_name,
                                   get_dtafile_from_genid(genid), genid, bdberr);
+}
+
+int bdb_set_high_genid_stripe(tran_type *input_trans, const char *db_name,
+                              int stripe, unsigned long long genid, int *bdberr)
+{
+    return bdb_set_high_genid_int(input_trans, db_name, stripe, genid, bdberr);
 }
 
 /* looks up the last procesed genid for a given stripe in the in progress schema

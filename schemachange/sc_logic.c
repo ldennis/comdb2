@@ -589,6 +589,33 @@ int finalize_schema_change_thd(struct ireq *iq, tran_type *trans)
     return rc;
 }
 
+void *sc_resuming_watchdog(void *p)
+{
+    int backout_schema_change(struct ireq *iq);
+    struct ireq iq;
+    struct schema_change_type *stored_sc = NULL;
+    logmsg(LOGMSG_INFO, "%s: started, sleeping 60 seconds\n", __func__);
+    sleep(60);
+    logmsg(LOGMSG_INFO, "%s: slept for 60 seconds\n", __func__);
+    bdb_thread_event(thedb->bdb_env, BDBTHR_EVENT_START_RDWR);
+    init_fake_ireq(thedb, &iq);
+    pthread_mutex_lock(&sc_resuming_mtx);
+    stored_sc = sc_resuming;
+    while (stored_sc) {
+        iq.sc = stored_sc;
+        stored_sc = stored_sc->sc_next;
+        logmsg(LOGMSG_INFO, "%s: aborting schema change of table '%s'\n",
+               __func__, iq.sc->table);
+        backout_schema_change(&iq);
+        free_schema_change_type(iq.sc);
+        iq.sc = NULL;
+    }
+    sc_resuming = NULL;
+    logmsg(LOGMSG_INFO, "%s: existing\n", __func__);
+    bdb_thread_event(thedb->bdb_env, BDBTHR_EVENT_DONE_RDWR);
+    pthread_mutex_unlock(&sc_resuming_mtx);
+}
+
 int resume_schema_change(void)
 {
     int i;
@@ -610,7 +637,7 @@ int resume_schema_change(void)
     }
     pthread_mutex_unlock(&schema_change_in_progress_mutex);
 
-    extern struct schema_change_type *sc_resuming;
+    pthread_mutex_lock(&sc_resuming_mtx);
     sc_resuming = NULL;
     for (i = 0; i < thedb->num_dbs; ++i) {
         int bdberr;
@@ -636,6 +663,7 @@ int resume_schema_change(void)
             if (!s) {
                 logmsg(LOGMSG_ERROR, "resume_schema_change: ran out of memory\n");
                 free(packed_sc_data);
+                pthread_mutex_unlock(&sc_resuming_mtx);
                 return -1;
             }
 
@@ -645,6 +673,7 @@ int resume_schema_change(void)
                            "from the low level meta table\n");
                 free(packed_sc_data);
                 free(s);
+                pthread_mutex_unlock(&sc_resuming_mtx);
                 return -1;
             }
 
@@ -682,6 +711,7 @@ int resume_schema_change(void)
                             abort_filename);
                 free(abort_filename);
                 free(s);
+                pthread_mutex_unlock(&sc_resuming_mtx);
                 return 0;
             }
             free(abort_filename);
@@ -720,14 +750,18 @@ int resume_schema_change(void)
                 s->sc_next = sc_resuming;
                 sc_resuming = s;
             } else if (rc != SC_OK && rc != SC_ASYNC) {
+                pthread_mutex_unlock(&sc_resuming_mtx);
                 return -1;
             }
-
-            return 0;
         }
     }
+    pthread_mutex_unlock(&sc_resuming_mtx);
 
-    return 0;
+    pthread_t tid;
+    rc = pthread_create(&tid, NULL, sc_resuming_watchdog, NULL);
+    if (rc)
+        logmsg(LOGMSG_ERROR, "%s: failed to dispatch sc_resuming_watchdog\n");
+    return rc;
 }
 
 /****************** Table functions ***********************************/

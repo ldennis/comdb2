@@ -716,7 +716,8 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
             goto backout;
         }
 
-        if ((rc = set_header_and_properties(transac, newdb,s, 1, polddb_bthashsz[indx])))
+        if ((rc = set_header_and_properties(transac, newdb, s, 1,
+                                            polddb_bthashsz[indx])))
             goto backout;
 
         /*update necessary versions and delete unnecessary files from newdb*/
@@ -808,7 +809,7 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
     sc_printf(s, "Schema change ok\n");
 
     for(indx=0;indx<maxindx;indx++) {
-        rc = bdb_close_only_tran(pold_bdb_handle[indx], transac, &bdberr);
+        rc = bdb_close_only_tran(pold_bdb_handle[indx], NULL, &bdberr);
         if (rc) {
             sc_errf(s, "Failed closing new db, bdberr\n", bdberr);
             goto failed;

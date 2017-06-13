@@ -204,7 +204,7 @@ int init_sc_genids(struct db *db, struct schema_change_type *s)
         /* if we may have to resume this schema change, clear the progress in
          * llmeta */
         if (bdb_clear_high_genid(NULL /*input_trans*/, db->dbname,
-                                 db->dtastripe, 0, &bdberr) ||
+                                 db->dtastripe, &bdberr) ||
             bdberr != BDBERR_NOERROR) {
             logmsg(LOGMSG_ERROR, "init_sc_genids: failed to clear high "
                                  "genids\n");
@@ -524,8 +524,8 @@ static int convert_record(struct convert_record_data *data)
             rc = 0;
             if (usellmeta && !is_dta_being_rebuilt(data->to->plan)) {
                 int bdberr;
-                rc = bdb_clear_high_genid(NULL, data->to->dbname,
-                                          data->to->dtastripe, 1, &bdberr);
+                rc = bdb_set_high_genid_stripe(NULL, data->to->dbname,
+                                               data->stripe, -1ULL, &bdberr);
                 if (rc != 0) {
                     if (bdberr == BDBERR_DEADLOCK)
                         rc = RC_INTERNAL_RETRY;
@@ -533,8 +533,8 @@ static int convert_record(struct convert_record_data *data)
                         rc = ERR_INTERNAL;
                 }
             }
-            sc_printf(data->s, "finished stripe %d, setting genid %llx\n",
-                      data->stripe, data->sc_genids[data->stripe]);
+            sc_printf(data->s, "finished stripe %d, setting genid %llx, rc %d\n",
+                      data->stripe, data->sc_genids[data->stripe], rc);
             return rc;
         } else if (rc == RC_INTERNAL_RETRY) {
             trans_abort(&data->iq, data->trans);

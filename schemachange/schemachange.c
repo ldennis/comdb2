@@ -47,12 +47,13 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
         return SC_NOT_MASTER;
     }
 
-    extern struct schema_change_type *sc_resuming;
     if (!s->resume && sc_resuming &&
         (s->addonly || s->drop_table || s->fastinit || s->alteronly)) {
         struct schema_change_type *last_sc = NULL;
-        struct schema_change_type *stored_sc = sc_resuming;
+        struct schema_change_type *stored_sc = NULL;
 
+        pthread_mutex_lock(&sc_resuming_mtx);
+        stored_sc = sc_resuming;
         while (stored_sc) {
             if (strcasecmp(stored_sc->table, s->table) == 0) {
                 uuidstr_t us;
@@ -70,6 +71,15 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
                         sc_resuming = NULL;
                     stored_sc->sc_next = NULL;
                 } else {
+                    /* TODO: found an ongoing sc with different rqid
+                     * should we fail this one or override the old one?
+                     *
+                     * For now, I am failing this one.
+                     */
+                    sc_errf(s, "schema change already in progress\n");
+                    free_schema_change_type(s);
+                    pthread_mutex_unlock(&sc_resuming_mtx);
+                    return SC_CANT_SET_RUNNING;
                 }
                 break;
             }
@@ -77,6 +87,7 @@ int start_schema_change_tran(struct ireq *iq, tran_type * trans)
             last_sc = stored_sc;
             stored_sc = stored_sc->sc_next;
         }
+        pthread_mutex_unlock(&sc_resuming_mtx);
         if (stored_sc) {
             stored_sc->tran = trans;
             stored_sc->iq = iq;

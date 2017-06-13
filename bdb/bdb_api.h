@@ -1435,8 +1435,11 @@ int bdb_get_in_schema_change(const char *db_name, void **schema_change_data,
 
 int bdb_set_high_genid(tran_type *input_trans, const char *db_name,
                        unsigned long long genid, int *bdberr);
+int bdb_set_high_genid_stripe(tran_type *input_trans, const char *db_name,
+                              int stripe, unsigned long long genid,
+                              int *bdberr);
 int bdb_clear_high_genid(tran_type *input_trans, const char *db_name,
-                         int num_stripes, int setmax, int *bdberr);
+                         int num_stripes, int *bdberr);
 int bdb_get_high_genid(const char *db_name, int stripe,
                        unsigned long long *genid, int *bdberr);
 
