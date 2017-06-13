@@ -2640,7 +2640,8 @@ int osql_save_schemachange(struct sql_thread *thd,
                __func__, sc->table);
         return -1;
     }
-    hash_info(clnt->ddl_tables, NULL, NULL, NULL, NULL, &count, NULL, NULL);
+    if (clnt->ddl_tables)
+        hash_info(clnt->ddl_tables, NULL, NULL, NULL, NULL, &count, NULL, NULL);
     rc = bdb_temp_table_put(thedb->bdb_env, osql->sc_tbl, &count, sizeof(int),
                             packed_sc_data, packed_sc_data_len, NULL, &bdberr);
     if (rc) {

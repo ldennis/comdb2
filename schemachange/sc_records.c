@@ -526,12 +526,8 @@ static int convert_record(struct convert_record_data *data)
                 int bdberr;
                 rc = bdb_set_high_genid_stripe(NULL, data->to->dbname,
                                                data->stripe, -1ULL, &bdberr);
-                if (rc != 0) {
-                    if (bdberr == BDBERR_DEADLOCK)
-                        rc = RC_INTERNAL_RETRY;
-                    else
-                        rc = ERR_INTERNAL;
-                }
+                if (rc != 0)
+                    rc = -1; // convert_record expects -1
             }
             sc_printf(data->s, "finished stripe %d, setting genid %llx, rc %d\n",
                       data->stripe, data->sc_genids[data->stripe], rc);
@@ -1080,8 +1076,8 @@ void *convert_records_thd(struct convert_record_data *data)
 cleanup:
     if (data->outrc == 0) {
         sc_printf(data->s,
-                  "successfully converted %lld records with %d retries\n",
-                  data->nrecs, data->totnretries);
+                  "successfully converted %lld records with %d retries "
+                  "stripe %d\n", data->nrecs, data->totnretries, data->stripe);
     } else {
         if (gbl_sc_abort) {
             sc_errf(data->s,
@@ -1205,6 +1201,7 @@ int convert_all_records(struct db *from, struct db *to,
         outrc = data.outrc;
     } else {
         struct convert_record_data threadData[gbl_dtastripe];
+        int threadSkipped[gbl_dtastripe];
         pthread_attr_t attr;
         int rc = 0;
 
@@ -1225,8 +1222,10 @@ int convert_all_records(struct db *from, struct db *to,
             if (sc_genids[ii] == -1ULL) {
                 sc_printf(threadData[ii].s, "stripe %d was done\n",
                           threadData[ii].stripe);
+                threadSkipped[ii] = 1;
                 continue;
-            }
+            } else
+                threadSkipped[ii] = 0;
 
             sc_printf(threadData[ii].s, "starting thread for stripe: %d\n",
                       threadData[ii].stripe);
@@ -1252,7 +1251,7 @@ int convert_all_records(struct db *from, struct db *to,
         for (ii = 0; ii < gbl_dtastripe; ++ii) {
             void *ret;
 
-            if (sc_genids[ii] == -1ULL)
+            if (threadSkipped[ii])
                 continue;
 
             /* if the threadid is NULL, skip this one */
