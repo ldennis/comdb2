@@ -8579,7 +8579,6 @@ void set_timepart_and_handle_resume_sc()
     if (!thedb->timepart_views)
         abort();
 
-#if 0 /* I dont think we need this for transactional ddl --Lingzhi */
     /* if there is an active schema changes, resume it, this is automatically
      * done every time the master changes, but on startup the low level meta
      * table wasn't open yet so we couldn't check to see if a schema change was
@@ -8591,7 +8590,6 @@ void set_timepart_and_handle_resume_sc()
                     "failed trying to resume schema change, "
                     "if one was in progress it will have to be restarted\n");
     }
-#endif
 }
 
 

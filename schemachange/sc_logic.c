@@ -386,10 +386,6 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq, tran_type *tran,
     if (s->finalize_only) {
         return s->sc_rc;
     }
-    if (s->rqid == 0 && comdb2uuid_is_zero(s->uuid)) {
-        s->rqid = iq->sorese.rqid;
-        comdb2uuidcpy(s->uuid, iq->sorese.uuid);
-    }
     if (type != alter)
         wrlock_schema_lk();
     set_original_tablename(s);
@@ -729,14 +725,6 @@ int resume_schema_change(void)
 
             s->nothrevent = 0;
             /* we are trying to resume this sc */
-            s->resume = SC_NEW_MASTER_RESUME;
-#if 0
-            s->finalize = 1; /* finalize at the end of resume */
-#else
-            s->finalize = 0; /* wait for resubmit of bplog */
-#endif
-
-            MEMORY_SYNC;
 
             uuidstr_t us;
             comdb2uuidstr(s->uuid, us);
@@ -744,14 +732,25 @@ int resume_schema_change(void)
                    "table %s, add %d, drop %d, fastinit %d, alter %d\n",
                    __func__, s->rqid, us, s->table, s->addonly, s->drop_table,
                    s->fastinit, s->alteronly);
+
+            if (s->rqid == 0 && comdb2uuid_is_zero(s->uuid)) {
+                s->resume = SC_RESUME;
+                s->finalize = 1; /* finalize at the end of resume */
+            } else {
+                s->resume = SC_NEW_MASTER_RESUME;
+                s->finalize = 0; /* wait for resubmit of bplog */
+            }
+
+            MEMORY_SYNC;
+
             /* start the schema change back up */
             rc = start_schema_change(s);
-            if (rc = SC_COMMIT_PENDING) {
-                s->sc_next = sc_resuming;
-                sc_resuming = s;
-            } else if (rc != SC_OK && rc != SC_ASYNC) {
+            if (rc != SC_OK && rc != SC_ASYNC) {
                 pthread_mutex_unlock(&sc_resuming_mtx);
                 return -1;
+            } else if (s->finalize == 0) {
+                s->sc_next = sc_resuming;
+                sc_resuming = s;
             }
         }
     }

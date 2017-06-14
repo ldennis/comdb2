@@ -2617,6 +2617,9 @@ int osql_save_schemachange(struct sql_thread *thd,
     size_t packed_sc_data_len;
     int count = 0;
 
+    if (!clnt->in_client_trans)
+        return 0;
+
     if (!osql->sc_tbl) {
         rc = osql_create_schemachange(thedb->bdb_env, thd->sqlclntstate,
                                       &bdberr);
