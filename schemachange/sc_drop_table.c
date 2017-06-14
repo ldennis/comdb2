@@ -273,6 +273,18 @@ int finalize_drop_table(struct ireq *iq, tran_type *tran)
  
     live_sc_off(db);
 
+    if (!gbl_create_mode) {
+        logmsg(LOGMSG_INFO, "Table %s is at version: %d\n", db->dbname,
+               db->version);
+    }
+
+    if (gbl_replicate_local)
+        local_replicant_write_clear(db);
+
+    free(newdb->handle);
+    free_db_and_replace(newdb, NULL);
+    s->newdb = NULL;
+
     /* delete files we don't need now */
     sc_del_unused_files_tran(db, tran);
 
