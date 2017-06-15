@@ -590,9 +590,10 @@ void *sc_resuming_watchdog(void *p)
     int backout_schema_change(struct ireq *iq);
     struct ireq iq;
     struct schema_change_type *stored_sc = NULL;
-    logmsg(LOGMSG_INFO, "%s: started, sleeping 60 seconds\n", __func__);
-    sleep(60);
-    logmsg(LOGMSG_INFO, "%s: slept for 60 seconds\n", __func__);
+    int time = bdb_attr_get(thedb->bdb_attr, BDB_ATTR_SC_RESUME_WATCHDOG_TIMER);
+    logmsg(LOGMSG_INFO, "%s: started, sleeping %d seconds\n", __func__, time);
+    sleep(time);
+    logmsg(LOGMSG_INFO, "%s: waking up\n", __func__);
     bdb_thread_event(thedb->bdb_env, BDBTHR_EVENT_START_RDWR);
     init_fake_ireq(thedb, &iq);
     pthread_mutex_lock(&sc_resuming_mtx);
@@ -733,7 +734,8 @@ int resume_schema_change(void)
                    __func__, s->rqid, us, s->table, s->addonly, s->drop_table,
                    s->fastinit, s->alteronly);
 
-            if (s->rqid == 0 && comdb2uuid_is_zero(s->uuid)) {
+            if (bdb_attr_get(thedb->bdb_attr, BDB_ATTR_SC_RESUME_AUTOCOMMIT) &&
+                s->rqid == 0 && comdb2uuid_is_zero(s->uuid)) {
                 s->resume = SC_RESUME;
                 s->finalize = 1; /* finalize at the end of resume */
             } else {
@@ -754,12 +756,14 @@ int resume_schema_change(void)
             }
         }
     }
-    pthread_mutex_unlock(&sc_resuming_mtx);
 
-    pthread_t tid;
-    rc = pthread_create(&tid, NULL, sc_resuming_watchdog, NULL);
-    if (rc)
-        logmsg(LOGMSG_ERROR, "%s: failed to dispatch sc_resuming_watchdog\n");
+    if (sc_resuming) {
+        pthread_t tid;
+        rc = pthread_create(&tid, NULL, sc_resuming_watchdog, NULL);
+        if (rc)
+            logmsg(LOGMSG_ERROR, "%s: failed to start sc_resuming_watchdog\n");
+    }
+    pthread_mutex_unlock(&sc_resuming_mtx);
     return rc;
 }
 

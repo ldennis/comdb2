@@ -2617,7 +2617,8 @@ int osql_save_schemachange(struct sql_thread *thd,
     size_t packed_sc_data_len;
     int count = 0;
 
-    if (!clnt->in_client_trans)
+    if (bdb_attr_get(thedb->bdb_attr, BDB_ATTR_SC_RESUME_AUTOCOMMIT) &&
+        !clnt->in_client_trans)
         return 0;
 
     if (!osql->sc_tbl) {

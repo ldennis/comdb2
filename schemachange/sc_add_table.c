@@ -171,7 +171,7 @@ int add_table_to_environment(char *table, const char *csc2,
         goto err;
 
     gbl_sc_commit_count++;
-    if (s->fastinit && s->db) {
+    if (s && s->fastinit && s->db) {
         replace_db_idx(newdb, s->db->dbs_idx, 1);
         free(s->db->handle);
         free_db_and_replace(s->db, NULL);

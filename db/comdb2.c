@@ -8583,7 +8583,8 @@ void set_timepart_and_handle_resume_sc()
      * done every time the master changes, but on startup the low level meta
      * table wasn't open yet so we couldn't check to see if a schema change was
      * in progress */
-    if (thedb->master == gbl_mynode) {
+    if (bdb_attr_get(thedb->bdb_attr, BDB_ATTR_SC_RESUME_AUTOCOMMIT) &&
+        thedb->master == gbl_mynode) {
         int irc = resume_schema_change();
         if (irc)
             logmsg(LOGMSG_ERROR, 
