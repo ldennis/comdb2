@@ -6527,7 +6527,7 @@ int osql_process_packet(struct ireq *iq, unsigned long long rqid, uuid_t uuid,
          * but since we changed the way we backup stats (used to be in llmeta)
          * this opcode is only used to reload stats now
          */
-        iq->osql_flags |= OSQL_FLAGS_ANALYZE;
+        bset(&iq->osql_flags, OSQL_FLAGS_ANALYZE);
     } break;
     case OSQL_INSREC:
     case OSQL_INSERT: {
@@ -7048,6 +7048,7 @@ int osql_process_packet(struct ireq *iq, unsigned long long rqid, uuid_t uuid,
         } else {
             iq->sc->sc_next = iq->sc_pending;
             iq->sc_pending = iq->sc;
+            bset(&iq->osql_flags,  OSQL_FLAGS_SCDONE);
         }
 
         return rc == SC_COMMIT_PENDING || !rc ? 0 : ERR_SC;
@@ -7231,12 +7232,12 @@ static int sorese_rcvreq(char *fromhost, void *dtap, int dtalen, int type,
     /* for socksql, is this a retry that need to be checked for self-deadlock?
      */
     if ((type == OSQL_SOCK_REQ || type == OSQL_SOCK_REQ_COST) &&
-        (req.flags & OSQL_FLAGS_CHECK_SELFLOCK)) {
+        (btst(&req.flags, OSQL_FLAGS_CHECK_SELFLOCK))) {
         /* just make sure we are above the threshold */
         iq->sorese.verify_retries += gbl_osql_verify_ext_chk;
     }
 
-    if ((req.flags & OSQL_FLAGS_USE_BLKSEQ)) {
+    if (btst(&req.flags, OSQL_FLAGS_USE_BLKSEQ)) {
         iq->sorese.use_blkseq = 1;
     } else {
         iq->sorese.use_blkseq = 0;

@@ -485,18 +485,16 @@ retry:
     }
 
     /* retrying a transaction, don't skip on blkseq */
-    if (keep_rqid) {
-        flags = OSQL_FLAGS_USE_BLKSEQ;
-    } else {
-        flags = 0;
-    }
+    flags = 0;
+    if (keep_rqid)
+        bset(&flags, OSQL_FLAGS_USE_BLKSEQ);
 
     /* socksql: check if this is a verify retry, and if we got enough of those
        to trigger a self-deadlock check on the master */
 
     if ((type == OSQL_SOCK_REQ || type == OSQL_SOCK_REQ_COST) &&
         clnt->verify_retries > gbl_osql_verify_ext_chk)
-        flags = OSQL_FLAGS_CHECK_SELFLOCK;
+        bset(&flags,  OSQL_FLAGS_CHECK_SELFLOCK);
     else
         flags = 0;
 

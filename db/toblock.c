@@ -5697,58 +5697,16 @@ add_blkseq:
     if (outrc == 0) {
         /* Committed new sqlite_stat1 statistics from analyze - reload sqlite
          * engines */
-        int bdberr;
-        if (iq->osql_flags & OSQL_FLAGS_ANALYZE) {
-            bdb_llog_analyze(thedb->bdb_env, 1, &bdberr);
-        } else if (iq->sc_pending) {
-            int bdberr;
-            llog_scdone_t *s;
-            struct schema_change_type *sc_next;
-            iq->sc = iq->sc_pending;
-            while (iq->sc != NULL) {
-                s = iq->sc->scdone;
-                if (s) {
-                    bdb_llog_scdone(s->handle, s->type, 1, &bdberr);
-                    free(s);
-                    iq->sc->scdone = NULL;
-                }
-                sc_next = iq->sc->sc_next;
-                free_schema_change_type(iq->sc);
-                iq->sc = sc_next;
-            }
-        }
-        if (iq->osql_flags & OSQL_FLAGS_ROWLOCKS) {
-            bdb_llog_rowlocks(thedb->bdb_env, iq->osql_rowlocks_enable ?
-                    rowlocks_on : rowlocks_off, &bdberr);
-        }
-        if (iq->osql_flags & OSQL_FLAGS_GENID48) {
-            bdb_set_genid_format(iq->osql_genid48_enable ? LLMETA_GENID_48BIT : 
-                    LLMETA_GENID_ORIGINAL, &bdberr);
-            bdb_llog_genid_format(thedb->bdb_env, iq->osql_genid48_enable ?
-                    genid48_enable : genid48_disable, &bdberr);
-        }
         iq->dbenv->txns_committed++;
         if (iq->dbglog_file) {
             dbglog_dump_write_stats(iq);
             sbuf2close(iq->dbglog_file);
             iq->dbglog_file = NULL;
         }
+        osql_postcommit_handle(iq);
     } else {
         iq->dbenv->txns_aborted++;
-        iq->sc = iq->sc_pending;
-        while (iq->sc != NULL) {
-            int backout_schema_change(struct ireq *iq);
-            struct schema_change_type *sc_next;
-            llog_scdone_t *s = iq->sc->scdone;
-            if (s) {
-                free(s);
-                iq->sc->scdone = NULL;
-            }
-            backout_schema_change(iq);
-            sc_next = iq->sc->sc_next;
-            free_schema_change_type(iq->sc);
-            iq->sc = sc_next;
-        }
+        osql_postabort_handle(iq);
     }
 
     if (iq->sc_locked) {
