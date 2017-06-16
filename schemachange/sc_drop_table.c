@@ -33,17 +33,14 @@ static inline void set_implicit_options(struct schema_change_type *s,
 {
     if (s->headers != db->odh)
         s->header_change = s->force_dta_rebuild = s->force_blob_rebuild = 1;
-    if (s->compress != scinfo->olddb_compress)
-        s->force_dta_rebuild = 1;
+    if (s->compress != scinfo->olddb_compress) s->force_dta_rebuild = 1;
     if (s->compress_blobs != scinfo->olddb_compress_blobs)
         s->force_blob_rebuild = 1;
-    if (scinfo->olddb_inplace_updates && !s->ip_updates)
-        s->force_rebuild = 1;
-    if (scinfo->olddb_instant_sc && !s->instant_sc)
-        s->force_rebuild = 1;
+    if (scinfo->olddb_inplace_updates && !s->ip_updates) s->force_rebuild = 1;
+    if (scinfo->olddb_instant_sc && !s->instant_sc) s->force_rebuild = 1;
 }
 
-static int delete_table(struct db *db, void * trans)
+static int delete_table(struct db *db, void *trans)
 {
     remove_constraint_pointers(db);
 
@@ -93,13 +90,12 @@ int do_drop_table(struct ireq *iq, tran_type *tran)
     /*************************************************************************/
     extern int gbl_broken_max_rec_sz;
     int saved_broken_max_rec_sz = gbl_broken_max_rec_sz;
-    if(s->db->lrl > COMDB2_MAX_RECORD_SIZE) {
-        //we want to allow fastiniting and dropping this tbl
+    if (s->db->lrl > COMDB2_MAX_RECORD_SIZE) {
+        // we want to allow fastiniting and dropping this tbl
         gbl_broken_max_rec_sz = s->db->lrl - COMDB2_MAX_RECORD_SIZE;
     }
 
-    if ((rc = load_db_from_schema(s, thedb, &foundix, NULL)))
-        return rc;
+    if ((rc = load_db_from_schema(s, thedb, &foundix, NULL))) return rc;
 
     gbl_broken_max_rec_sz = saved_broken_max_rec_sz;
     /*************************************************************************/
@@ -108,8 +104,7 @@ int do_drop_table(struct ireq *iq, tran_type *tran)
      * TODO del NULL param, pre-llmeta holdover */
     db->sc_to = newdb = s->newdb =
         create_db_from_schema(thedb, s, db->dbnum, foundix, 1);
-    if (newdb == NULL)
-        return SC_INTERNAL_ERROR;
+    if (newdb == NULL) return SC_INTERNAL_ERROR;
 
     if (add_cmacc_stmt(newdb, 1) != 0) {
         backout_schemas(newdb->dbname);
@@ -189,8 +184,7 @@ int finalize_drop_table(struct ireq *iq, tran_type *tran)
     int bdberr = 0;
     int olddb_bthashsz;
 
-    if (get_db_bthash_tran(db, &olddb_bthashsz, tran) != 0)
-        olddb_bthashsz = 0;
+    if (get_db_bthash_tran(db, &olddb_bthashsz, tran) != 0) olddb_bthashsz = 0;
 
     /* Before this handle is closed, lets wait for all the db reads to finish*/
     bdb_lock_table_write(db->handle, tran);
@@ -217,8 +211,7 @@ int finalize_drop_table(struct ireq *iq, tran_type *tran)
 
     /*set all metapointers to new files*/
     rc = bdb_commit_temp_file_version_all(newdb->handle, tran, &bdberr);
-    if (rc)
-        return -1;
+    if (rc) return -1;
 
     /* delete any new file versions this table has */
     if (bdb_del_file_versions(newdb->handle, tran, &bdberr) ||
@@ -227,8 +220,7 @@ int finalize_drop_table(struct ireq *iq, tran_type *tran)
         return -1;
     }
 
-    if ((rc = mark_schemachange_over_tran(db->dbname, tran)))
-        return rc;
+    if ((rc = mark_schemachange_over_tran(db->dbname, tran))) return rc;
 
     /* remove the new.NUM. prefix */
     bdb_remove_prefix(newdb->handle);
@@ -241,12 +233,11 @@ int finalize_drop_table(struct ireq *iq, tran_type *tran)
     delete_table(db, tran);
     /*Now that we don't have any data, please clear unwanted schemas.*/
     bdberr = bdb_reset_csc2_version(tran, db->dbname, db->version);
-    if (bdberr != BDBERR_NOERROR)
-        return -1;
+    if (bdberr != BDBERR_NOERROR) return -1;
 
     if ((rc = bdb_del(db->handle, tran, &bdberr)) != 0) {
-        sc_errf(s, "%s: bdb_del failed with rc: %d bdberr: %d\n", __func__,
-                rc, bdberr);
+        sc_errf(s, "%s: bdb_del failed with rc: %d bdberr: %d\n", __func__, rc,
+                bdberr);
         return rc;
     } else if ((rc = bdb_del_file_versions(db->handle, tran, &bdberr))) {
         sc_errf(s, "%s: bdb_del_file_versions failed with rc: %d bdberr: "
@@ -270,7 +261,7 @@ int finalize_drop_table(struct ireq *iq, tran_type *tran)
         return rc;
     }
     create_master_tables(); /* create sql statements */
- 
+
     live_sc_off(db);
 
     if (!gbl_create_mode) {
@@ -278,8 +269,7 @@ int finalize_drop_table(struct ireq *iq, tran_type *tran)
                db->version);
     }
 
-    if (gbl_replicate_local)
-        local_replicant_write_clear(db);
+    if (gbl_replicate_local) local_replicant_write_clear(db);
 
     free(newdb->handle);
     free_db_and_replace(newdb, NULL);
