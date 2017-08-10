@@ -895,6 +895,11 @@ static pthread_mutex_t pglogs_relink_list_pool_lk;
 static pthread_mutex_t pglogs_queue_lk;
 static hash_t *pglogs_queue_fileid_hash;
 
+#ifdef NEWSI_ASOF_USE_TEMPTABLE
+static pool_t *logfile_tmptbl_hashkey_pool = NULL;
+static pthread_mutex_t logfile_tmptbl_hashkey_pool_lk;
+#endif
+
 static pthread_mutex_t del_queue_lk = PTHREAD_MUTEX_INITIALIZER;
 
 static struct fileid_pglogs_queue *allocate_fileid_pglogs_queue()
@@ -1149,7 +1154,7 @@ static int return_pglogs_logical_key(void *obj, void *arg)
                  sizeof(db_pgno_t);
     void *ent;
     Pthread_mutex_lock(&pglogs_lsn_commit_list_pool_lk);
-    while ((ent = listc_rtl(list)) != NULL) {
+    while (list && ((ent = listc_rtl(list)) != NULL)) {
 #ifdef NEWSI_DEBUG_POOL
         assert(((struct lsn_commit_list *)ent)->pool ==
                pglogs_lsn_commit_list_pool);
@@ -1212,30 +1217,105 @@ void bdb_return_pglogs_hashtbl(hash_t *hashtbl)
 logfile_pglog_hashkey *allocate_logfile_pglog_hashkey(void)
 {
 #ifdef NEWSI_ASOF_USE_TEMPTABLE
+    logfile_pglog_hashkey *r;
+    Pthread_mutex_lock(&logfile_tmptbl_hashkey_pool_lk);
+    r = pool_getablk(logfile_tmptbl_hashkey_pool);
+    Pthread_mutex_unlock(&logfile_tmptbl_hashkey_pool_lk);
+#ifdef NEWSI_DEBUG_POOL
+    r->pool = logfile_tmptbl_hashkey_pool;
+#endif
+    return r;
 #else
     return allocate_pglogs_logical_key();
+#endif
+}
+
+#ifdef NEWSI_ASOF_USE_TEMPTABLE
+static int return_logfile_pglog_hashkey(void *obj, void *arg)
+{
+    /* char *list = (char *)obj + DB_FILE_ID_LEN * sizeof(unsigned char) +
+                 sizeof(db_pgno_t);
+    void *ent;
+    Pthread_mutex_lock(&pglogs_lsn_commit_list_pool_lk);
+    while ((ent = listc_rtl(list)) != NULL) {
+#ifdef NEWSI_DEBUG_POOL
+        assert(((struct lsn_commit_list *)ent)->pool ==
+               pglogs_lsn_commit_list_pool);
+#endif
+        pool_relablk(pglogs_lsn_commit_list_pool, ent);
+    }
+    Pthread_mutex_unlock(&pglogs_lsn_commit_list_pool_lk);
+    */
+    Pthread_mutex_lock(&logfile_tmptbl_hashkey_pool_lk);
+#ifdef NEWSI_DEBUG_POOL
+    assert(((logfile_pglog_hashkey *)obj)->pool == logfile_tmptbl_hashkey_pool);
+#endif
+    pool_relablk(logfile_tmptbl_hashkey_pool, obj);
+    Pthread_mutex_unlock(&logfile_tmptbl_hashkey_pool_lk);
+    return 0;
+}
+#endif
+
+void bdb_return_logfile_pglogs_hashtbl(hash_t *hashtbl)
+{
+#ifdef NEWSI_ASOF_USE_TEMPTABLE
+    hash_for(hashtbl, return_logfile_pglog_hashkey, hashtbl);
+    hash_clear(hashtbl);
+    hash_free(hashtbl);
+#else
+    bdb_return_pglogs_logical_hashtbl(hashtbl);
 #endif
 }
 
 logfile_relink_hashkey *allocate_logfile_relink_hashkey(void)
 {
 #ifdef NEWSI_ASOF_USE_TEMPTABLE
+    logfile_relink_hashkey *r;
+    Pthread_mutex_lock(&logfile_tmptbl_hashkey_pool_lk);
+    r = pool_getablk(logfile_tmptbl_hashkey_pool);
+    Pthread_mutex_unlock(&logfile_tmptbl_hashkey_pool_lk);
+#ifdef NEWSI_DEBUG_POOL
+    r->pool = logfile_tmptbl_hashkey_pool;
+#endif
+    return r;
 #else
     return allocate_pglogs_relink_key();
 #endif
 }
 
-void bdb_return_logfile_pglogs_hashtbl(hash_t *hashtbl)
-{
 #ifdef NEWSI_ASOF_USE_TEMPTABLE
-#else
-    bdb_return_pglogs_logical_hashtbl(hashtbl);
+static int return_logfile_relink_hashkey(void *obj, void *arg)
+{
+    /* char *list = (char *)obj + DB_FILE_ID_LEN * sizeof(unsigned char) +
+                 sizeof(db_pgno_t);
+    void *ent;
+    Pthread_mutex_lock(&pglogs_lsn_commit_list_pool_lk);
+    while ((ent = listc_rtl(list)) != NULL) {
+#ifdef NEWSI_DEBUG_POOL
+        assert(((struct lsn_commit_list *)ent)->pool ==
+               pglogs_lsn_commit_list_pool);
 #endif
+        pool_relablk(pglogs_lsn_commit_list_pool, ent);
+    }
+    Pthread_mutex_unlock(&pglogs_lsn_commit_list_pool_lk);
+    */
+    Pthread_mutex_lock(&logfile_tmptbl_hashkey_pool_lk);
+#ifdef NEWSI_DEBUG_POOL
+    assert(((logfile_relink_hashkey *)obj)->pool ==
+           logfile_tmptbl_hashkey_pool);
+#endif
+    pool_relablk(logfile_tmptbl_hashkey_pool, obj);
+    Pthread_mutex_unlock(&logfile_tmptbl_hashkey_pool_lk);
+    return 0;
 }
+#endif
 
 void bdb_return_logfile_relinks_hashtbl(hash_t *hashtbl)
 {
 #ifdef NEWSI_ASOF_USE_TEMPTABLE
+    hash_for(hashtbl, return_logfile_relink_hashkey, hashtbl);
+    hash_clear(hashtbl);
+    hash_free(hashtbl);
 #else
     bdb_return_pglogs_relink_hashtbl(hashtbl);
 #endif
@@ -1285,6 +1365,13 @@ int bdb_gbl_pglogs_mem_init(bdb_state_type *bdb_state)
     pthread_mutex_init(&pglogs_lsn_commit_list_pool_lk, NULL);
     pthread_mutex_init(&pglogs_relink_key_pool_lk, NULL);
     pthread_mutex_init(&pglogs_relink_list_pool_lk, NULL);
+
+#ifdef NEWSI_ASOF_USE_TEMPTABLE
+    assert(sizeof(logfile_pglog_hashkey) == sizeof(logfile_relink_hashkey));
+    logfile_tmptbl_hashkey_pool =
+        pool_setalloc_init(sizeof(logfile_pglog_hashkey), stepup, malloc, free);
+    pthread_mutex_init(&logfile_tmptbl_hashkey_pool_lk, NULL);
+#endif
 
     return 0;
 }
@@ -1571,6 +1658,121 @@ retrieve_logfile_pglogs(unsigned int filenum, int create)
     }
     return e;
 }
+
+#ifdef NEWSI_ASOF_USE_TEMPTABLE
+static int logfile_pglog_tmptbl_cmp(void *_, int key1len, const void *key1,
+                                    int key2len, const void *key2)
+{
+    int len;
+    int rc;
+    pglogs_tmptbl_key *pkey1;
+    pglogs_tmptbl_key *pkey2;
+    assert(key1len == key2len);
+    pkey1 = (pglogs_tmptbl_key *)key1;
+    pkey2 = (pglogs_tmptbl_key *)key2;
+    len = key1len;
+    if (pkey1->pgno != pkey2->pgno) {
+        if (pkey1->pgno < pkey2->pgno)
+            return -1;
+        else
+            return 1;
+    } else if ((rc = log_compare(&pkey1->commit_lsn, &pkey2->commit_lsn)) != 0)
+        return rc;
+    else
+        return log_compare(&pkey1->lsn, &pkey2->lsn);
+}
+
+static logfile_pglog_hashkey *
+retrieve_logfile_pglog_hashkey(hash_t *pglogs_hashtbl,
+                               logfile_pglog_hashkey *key, int create)
+{
+    int bdberr = 0;
+    logfile_pglog_hashkey *ent = NULL;
+    if (((ent = hash_find(pglogs_hashtbl, key)) == NULL) && create) {
+        ent = allocate_logfile_pglog_hashkey();
+        if (!ent) {
+            logmsg(LOGMSG_ERROR, "%s: failed to init hash key\n", __func__);
+            return NULL;
+        }
+        memcpy(ent->fileid, key->fileid, DB_FILE_ID_LEN);
+        ent->tmptbl = bdb_temp_table_create(thedb->bdb_env, &bdberr);
+        if (ent->tmptbl == NULL) {
+            logmsg(LOGMSG_ERROR, "%s: failed to init temp table\n", __func__);
+            return_logfile_pglog_hashkey(ent);
+            return NULL;
+        }
+        ent->tmpcur =
+            bdb_temp_table_cursor(thedb->bdb_env, ent->tmptbl, NULL, &bdberr);
+        if (ent->tmpcur == NULL) {
+            logmsg(LOGMSG_ERROR, "%s: failed to init temp cursor\n", __func__);
+            return_logfile_pglog_hashkey(ent);
+            return NULL;
+        }
+        bdb_temp_table_set_cmp_func(ent->tmptbl, logfile_pglog_tmptbl_cmp);
+        hash_add(pglogs_hashtbl, ent);
+    }
+    return ent;
+}
+
+static int logfile_relink_tmptbl_cmp(void *_, int key1len, const void *key1,
+                                     int key2len, const void *key2)
+{
+    int len;
+    int rc;
+    relinks_tmptbl_key *pkey1;
+    relinks_tmptbl_key *pkey2;
+    assert(key1len == key2len);
+    pkey1 = (relinks_tmptbl_key *)key1;
+    pkey2 = (relinks_tmptbl_key *)key2;
+    len = key1len;
+    if (pkey1->pgno != pkey2->pgno) {
+        if (pkey1->pgno < pkey2->pgno)
+            return -1;
+        else
+            return 1;
+    } else if ((rc = log_compare(&pkey1->lsn, &pkey2->lsn)) != 0) {
+        return rc;
+    } else if (pkey1->inh != pkey2->inh) {
+        if (pkey1->inh < pkey2->inh)
+            return -1;
+        else
+            return 1;
+    }
+    return 0;
+}
+
+static logfile_relink_hashkey *
+retrieve_logfile_relink_hashkey(hash_t *relinks_hashtbl,
+                                logfile_relink_hashkey *key, int create)
+{
+    int bdberr = 0;
+    logfile_relink_hashkey *ent = NULL;
+    if (((ent = hash_find(relinks_hashtbl, key)) == NULL) && create) {
+        ent = allocate_logfile_relink_hashkey();
+        if (!ent) {
+            logmsg(LOGMSG_ERROR, "%s: failed to init hash key\n", __func__);
+            return NULL;
+        }
+        memcpy(ent->fileid, key->fileid, DB_FILE_ID_LEN);
+        ent->tmptbl = bdb_temp_table_create(thedb->bdb_env, &bdberr);
+        if (ent->tmptbl == NULL) {
+            logmsg(LOGMSG_ERROR, "%s: failed to init temp table\n", __func__);
+            return_logfile_relink_hashkey(ent);
+            return NULL;
+        }
+        ent->tmpcur =
+            bdb_temp_table_cursor(thedb->bdb_env, ent->tmptbl, NULL, &bdberr);
+        if (ent->tmpcur == NULL) {
+            logmsg(LOGMSG_ERROR, "%s: failed to init temp cursor\n", __func__);
+            return_logfile_relink_hashkey(ent);
+            return NULL;
+        }
+        bdb_temp_table_set_cmp_func(ent->tmptbl, logfile_relink_tmptbl_cmp);
+        hash_add(relinks_hashtbl, ent);
+    }
+    return ent;
+}
+#endif
 
 void bdb_delete_logfile_pglogs(bdb_state_type *bdb_state, int filenum)
 {
@@ -2172,6 +2374,39 @@ int bdb_insert_logfile_pglog_int(hash_t *pglogs_hashtbl, unsigned char *fileid,
                                  db_pgno_t pgno, DB_LSN lsn, DB_LSN commit_lsn)
 {
 #ifdef NEWSI_ASOF_USE_TEMPTABLE
+    logfile_pglog_hashkey key;
+    logfile_pglog_hashkey *pglogs_ent = NULL;
+    pglogs_tmptbl_key rec = {0};
+    int bdberr;
+
+    if (pgno == 0)
+        return 0;
+
+    memcpy(key.fileid, fileid, DB_FILE_ID_LEN);
+
+    /* find the page in the hash */
+    pglogs_ent = retrieve_logfile_pglog_hashkey(pglogs_hashtbl, &key, 1);
+    if (!pglogs_ent)
+        return ENOMEM;
+
+    rec.pgno = pgno;
+    rec.lsn = lsn;
+    rec.commit_lsn = commit_lsn;
+    return bdb_temp_table_insert(thedb->bdb_env, pglogs_ent->tmpcur, &rec,
+                                 sizeof(pglogs_tmptbl_key), NULL, 0, &bdberr);
+/*
+printf("%s: added lsn [%u][%u] addr %p to hash %p, ent %p list %p\n",
+       __func__, lsn.file, lsn.offset, lsnent, pglogs_hashtbl, pglogs_ent,
+       &pglogs_ent->lsns);
+char *buf;
+hexdumpbuf(fileid, DB_FILE_ID_LEN, &buf);
+printf("%s: FILEID: %s ", __func__, buf);
+printf(" PGNO: %d ", pgno);
+printf(" LSN: %d:%d ", lsn.file, lsn.offset);
+printf(" commit_lsn: %d:%d ", commit_lsn.file, commit_lsn.offset);
+printf("\n");
+free(buf);
+*/
 #else
     return bdb_insert_pglogs_logical_int(pglogs_hashtbl, fileid, pgno, lsn,
                                          commit_lsn);
@@ -2263,6 +2498,38 @@ int bdb_insert_logfile_relink_int(hash_t *relinks_hashtbl,
                                   DB_LSN lsn)
 {
 #ifdef NEWSI_ASOF_USE_TEMPTABLE
+    logfile_relink_hashkey key;
+    logfile_relink_hashkey *relinks_ent = NULL;
+    relinks_tmptbl_key rec = {0};
+    int rc, bdberr;
+
+    if (pgno == 0)
+        return 0;
+
+    memcpy(key.fileid, fileid, DB_FILE_ID_LEN);
+    relinks_ent = retrieve_logfile_relink_hashkey(relinks_hashtbl, &key, 1);
+    if (!relinks_ent)
+        return ENOMEM;
+
+    rec.inh = pgno;
+    rec.lsn = lsn;
+    if (prev_pgno) {
+        rec.pgno = prev_pgno;
+        rc =
+            bdb_temp_table_insert(thedb->bdb_env, relinks_ent->tmpcur, &rec,
+                                  sizeof(relinks_tmptbl_key), NULL, 0, &bdberr);
+        if (rc)
+            return rc;
+    }
+    if (next_pgno) {
+        rec.pgno = next_pgno;
+        rc =
+            bdb_temp_table_insert(thedb->bdb_env, relinks_ent->tmpcur, &rec,
+                                  sizeof(relinks_tmptbl_key), NULL, 0, &bdberr);
+        if (rc)
+            return rc;
+    }
+    return 0;
 #else
     return bdb_insert_relinks_int(relinks_hashtbl, fileid, pgno, prev_pgno,
                                   next_pgno, lsn);
