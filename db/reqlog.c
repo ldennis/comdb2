@@ -233,6 +233,11 @@ static void dump(struct reqlogger *logger, struct output *out, const char *s,
                  int len)
 {
     int ii;
+    int len2 = strlen(s);
+    if (len2 != len) {
+        logmsg(LOGMSG_ERROR, "%s: real len %d, len %d!\n", __func__, len2, len);
+        len = len2;
+    }
     for (ii = 0; ii < len;) {
         if (logger->dumplinepos >= sizeof(logger->dumpline)) {
             flushdump(logger, out);

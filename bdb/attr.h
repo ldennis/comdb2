@@ -516,7 +516,7 @@ DEF_ATTR(UNDO_DEADLOCK_THRESHOLD, undo_deadlock_threshold, QUANTITY, 1,
 /* temporary, as an emergency switch */
 DEF_ATTR(USE_RECOVERY_START_FOR_LOG_DELETION,
          use_recovery_start_for_log_deletion, BOOLEAN, 1, NULL)
-DEF_ATTR(DEBUG_LOG_DELETION, debug_log_deletion, BOOLEAN, 0, NULL)
+DEF_ATTR(DEBUG_LOG_DELETION, debug_log_deletion, BOOLEAN, 1, NULL)
 DEF_ATTR(NET_INORDER_LOGPUTS, net_inorder_logputs, BOOLEAN, 0,
          "Attempt to order messages to ensure they go out in LSN order.")
 DEF_ATTR(RCACHE_COUNT, rcache_count, QUANTITY, 257,

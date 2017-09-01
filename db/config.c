@@ -1074,10 +1074,14 @@ static int read_lrl_option(struct dbenv *dbenv, char *line, void *p, int len)
     } else if (tokcmp(tok, ltok, "enable_snapshot_isolation") == 0) {
         bdb_attr_set(dbenv->bdb_attr, BDB_ATTR_SNAPISOL, 1);
         gbl_snapisol = 1;
+        gbl_new_snapisol = 1;
+        gbl_new_snapisol_asof = 1;
+        gbl_new_snapisol_logging = 1;
     } else if (tokcmp(tok, ltok, "enable_new_snapshot") == 0) {
         bdb_attr_set(dbenv->bdb_attr, BDB_ATTR_SNAPISOL, 1);
         gbl_snapisol = 1;
         gbl_new_snapisol = 1;
+        gbl_new_snapisol_asof = 1;
         gbl_new_snapisol_logging = 1;
         logmsg(LOGMSG_INFO, "Enabled new snapshot\n");
     } else if (tokcmp(tok, ltok, "enable_new_snapshot_asof") == 0) {
@@ -1096,6 +1100,9 @@ static int read_lrl_option(struct dbenv *dbenv, char *line, void *p, int len)
     } else if (tokcmp(tok, ltok, "enable_serial_isolation") == 0) {
         bdb_attr_set(dbenv->bdb_attr, BDB_ATTR_SNAPISOL, 1);
         gbl_snapisol = 1;
+        gbl_new_snapisol = 1;
+        gbl_new_snapisol_asof = 1;
+        gbl_new_snapisol_logging = 1;
         gbl_selectv_rangechk = 1;
     } else if (tokcmp(tok, ltok, "on") == 0) {
         change_switch(1, line, len, st);

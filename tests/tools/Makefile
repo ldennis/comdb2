@@ -35,6 +35,9 @@ stepper: stepper.o stepper_client.o
 serial: serial.o
 	$(CC) -o serial $^ $(LDFLAGS) $(CDB2LIBS) -lpthread
 
+dbbench: dbbench.o number_name.o ts_diff.o
+	$(CC) -o dbbench $^ $(LDFLAGS) $(CDB2LIBS) -lpthread -lrt
+
 ptrantest: ptrantest.o
 	$(CC) -o $@ $^ $(LDFLAGS) $(CDB2LIBS) -lsqlite3 -lpthread
 
