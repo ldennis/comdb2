@@ -194,6 +194,7 @@ tests/tools/bound
 tests/tools/localrep
 tests/tools/utf8
 tests/tools/crle
+tests/tools/dbbench
 
 # jepsen c test
 jepsen/ctest/test*
