@@ -971,36 +971,40 @@ void transfer_db_settings(struct dbtable *olddb, struct dbtable *newdb)
 }
 
 /* use callers transaction if any, need to do I/O */
-void set_odh_options_tran(struct dbtable *db, tran_type *tran)
+int set_odh_options_tran(struct dbtable *db, tran_type *tran)
 {
     int compr = 0;
     int blob_compr = 0;
     int datacopy_odh = 0;
 
-    get_db_odh_tran(db, &db->odh, tran);
-    get_db_instant_schema_change_tran(db, &db->instant_schema_change, tran);
-    get_db_datacopy_odh_tran(db, &datacopy_odh, tran);
-    get_db_inplace_updates_tran(db, &db->inplace_updates, tran);
-    get_db_compress_tran(db, &compr, tran);
-    get_db_compress_blobs_tran(db, &blob_compr, tran);
+    if (get_db_odh_tran(db, &db->odh, tran))
+        return -1;
+    if (get_db_instant_schema_change_tran(db, &db->instant_schema_change, tran))
+        return -1;
+    if (get_db_datacopy_odh_tran(db, &datacopy_odh, tran))
+        return -1;
+    if (get_db_inplace_updates_tran(db, &db->inplace_updates, tran))
+        return -1;
+    if (get_db_compress_tran(db, &compr, tran))
+        return -1;
+    if (get_db_compress_blobs_tran(db, &blob_compr, tran))
+        return -1;
     db->version = get_csc2_version_tran(db->dbname, tran);
+    if (db->version < 0)
+        return -1;
 
     set_bdb_option_flags(db, db->odh, db->inplace_updates,
                          db->instant_schema_change, db->version, compr,
                          blob_compr, datacopy_odh);
 
-    /*
-    if (db->version < 0)
-        return -1;
 
     return 0;
-    */
 }
 
 /* Get flags from llmeta and set db, bdb_state */
-void set_odh_options(struct dbtable *db)
+int set_odh_options(struct dbtable *db)
 {
-    set_odh_options_tran(db, NULL);
+    return set_odh_options_tran(db, NULL);
 }
 
 int compare_constraints(const char *table, struct dbtable *newdb)

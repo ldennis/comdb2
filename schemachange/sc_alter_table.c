@@ -746,7 +746,11 @@ int finalize_alter_table(struct ireq *iq, tran_type *transac)
         goto failed;
     }
 
-    set_odh_options_tran(db, transac);
+    rc = set_odh_options_tran(db, transac);
+    if (rc) {
+        sc_errf(s, "Failed setting odh options rc %d\n", rc);
+        goto failed;
+    }
 
     if (olddb_bthashsz) {
         logmsg(LOGMSG_INFO,

@@ -58,8 +58,8 @@ int create_schema_change_plan(struct schema_change_type *s, struct dbtable *oldd
 
 void transfer_db_settings(struct dbtable *olddb, struct dbtable *newdb);
 
-void set_odh_options_tran(struct dbtable *db, tran_type *tran);
-void set_odh_options(struct dbtable *db);
+int set_odh_options_tran(struct dbtable *db, tran_type *tran);
+int set_odh_options(struct dbtable *db);
 
 int compare_constraints(const char *table, struct dbtable *newdb);
 

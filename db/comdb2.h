@@ -3455,8 +3455,8 @@ extern int dfp_conv_check_status(void *pctx, char *from, char *to);
 
 void fix_constraint_pointers(struct dbtable *db, struct dbtable *newdb);
 struct schema *create_version_schema(char *csc2, int version, struct dbenv *);
-void set_odh_options(struct dbtable *);
-void set_odh_options_tran(struct dbtable *db, tran_type *tran);
+int set_odh_options(struct dbtable *);
+int set_odh_options_tran(struct dbtable *db, tran_type *tran);
 void transfer_db_settings(struct dbtable *olddb, struct dbtable *newdb);
 int reload_after_bulkimport(struct dbtable *, tran_type *);
 int reload_db_tran(struct dbtable *, tran_type *);

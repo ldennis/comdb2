@@ -5079,6 +5079,8 @@ retry:
     iq->gluewhere = "bdb_lite_exact_fetch done";
     if (rc == -1) {
         if (bdberr == BDBERR_DEADLOCK) {
+            if (tran)
+                return RC_INTERNAL_RETRY;
             iq->retries++;
             if (++retries < gbl_maxretries) {
                 n_retries++;
@@ -5119,6 +5121,8 @@ retry:
     iq->gluewhere = "bdb_lite_exact_fetch done";
     if (rc == -1) {
         if (bdberr == BDBERR_DEADLOCK) {
+            if (tran)
+                return RC_INTERNAL_RETRY;
             iq->retries++;
             if (++retries < gbl_maxretries) {
                 n_retries++;

@@ -901,7 +901,12 @@ int reload_schema(char *table, const char *csc2, tran_type *tran)
             exit(1);
         }
 
-        set_odh_options_tran(newdb, tran);
+        rc = set_odh_options_tran(newdb, tran);
+        if (rc != 0) {
+            logmsg(LOGMSG_ERROR, "Failed to set odh options\n");
+            return -1;
+        }
+
         transfer_db_settings(db, newdb);
         restore_constraint_pointers(db, newdb);
 
