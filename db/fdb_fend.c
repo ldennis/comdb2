@@ -638,6 +638,9 @@ static int _table_exists(fdb_t *fdb, const char *table_name,
                 } else {
                     return FDB_ERR_GENERIC;
                 }
+            } else {
+                /* pass table version upstream */
+                *version = table->version;
             }
         }
 
