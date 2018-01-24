@@ -1497,8 +1497,9 @@ int verify_add_constraints(struct javasp_trans_state *javasp_trans_handle,
                         cmp = memcmp(lkey + from_off, lkey + to_off, mlen);
                         if (!isnull && cmp >= 0) {
                             if (iq->debug) {
-                                reqprintf(iq, "VERKYCNSTRT CANT RESOLVE "
-                                              "CONSTRAINT NO_OVERLAP(%s : %s)",
+                                reqprintf(iq,
+                                          "VERKYCNSTRT CANT RESOLVE "
+                                          "CONSTRAINT NO_OVERLAP(%s : %s)",
                                           ct->table[ridx], ct->keynm[ridx]);
                                 reqdumphex(iq, lkey, ixlen);
                             }
@@ -1534,8 +1535,9 @@ int verify_add_constraints(struct javasp_trans_state *javasp_trans_handle,
                         */
                         if (fgenid != genid) {
                             if (iq->debug) {
-                                reqprintf(iq, "VERKYCNSTRT CANT RESOLVE "
-                                              "CONSTRAINT NO_OVERLAP(%s : %s)",
+                                reqprintf(iq,
+                                          "VERKYCNSTRT CANT RESOLVE "
+                                          "CONSTRAINT NO_OVERLAP(%s : %s)",
                                           ct->table[ridx], ct->keynm[ridx]);
                                 reqdumphex(iq, lkey, ixlen);
                             }
@@ -1579,8 +1581,9 @@ int verify_add_constraints(struct javasp_trans_state *javasp_trans_handle,
                         if (fgenid != genid && (isnull || cmp < 0) &&
                             memcmp(rkey, key, ixlen) == 0) {
                             if (iq->debug) {
-                                reqprintf(iq, "VERKYCNSTRT CANT RESOLVE "
-                                              "CONSTRAINT NO_OVERLAP(%s : %s)",
+                                reqprintf(iq,
+                                          "VERKYCNSTRT CANT RESOLVE "
+                                          "CONSTRAINT NO_OVERLAP(%s : %s)",
                                           ct->table[ridx], ct->keynm[ridx]);
                                 reqdumphex(iq, lkey, ixlen);
                             }
@@ -1621,8 +1624,9 @@ int verify_add_constraints(struct javasp_trans_state *javasp_trans_handle,
                         if (fgenid != genid && (isnull || cmp > 0) &&
                             memcmp(rkey, key, ixlen) == 0) {
                             if (iq->debug) {
-                                reqprintf(iq, "VERKYCNSTRT CANT RESOLVE "
-                                              "CONSTRAINT NO_OVERLAP(%s : %s)",
+                                reqprintf(iq,
+                                          "VERKYCNSTRT CANT RESOLVE "
+                                          "CONSTRAINT NO_OVERLAP(%s : %s)",
                                           ct->table[ridx], ct->keynm[ridx]);
                                 reqdumphex(iq, lkey, ixlen);
                             }
@@ -2112,8 +2116,9 @@ static void constraint_err(void *s, struct dbtable *db, constraint_t *ct, int ru
              ct->keynm[rule],
              err);
        else */
-    logmsg(LOGMSG_ERROR, "constraint error for table \"%s\" key \"%s\" -> "
-                         "%s<\"%s\":\"%s\">: %s\n",
+    logmsg(LOGMSG_ERROR,
+           "constraint error for table \"%s\" key \"%s\" -> "
+           "%s<\"%s\":\"%s\">: %s\n",
            db->tablename, ct->lclkeyname,
            (ct->flags & CT_NO_OVERLAP) ? "no_overlap" : "", ct->table[rule],
            ct->keynm[rule], err);

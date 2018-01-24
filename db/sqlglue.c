@@ -12387,8 +12387,9 @@ int comdb2_temporal_systime_check(Vdbe *v, const char *dbname, Mem *pMem)
         int outdtsz;
         dttz_to_str(&dt, timestr, 64, &outdtsz, pMem->tz);
         dttz_to_str(&(pMem->du.dt), timestr2, 64, &outdtsz, pMem->tz);
-        sqlite3VdbeError(v, "Invalid parameter: table '%s' was not valid until "
-                            "'%s', given '%s'",
+        sqlite3VdbeError(v,
+                         "Invalid parameter: table '%s' was not valid until "
+                         "'%s', given '%s'",
                          dbname, timestr, timestr2);
         return SQLITE_ERROR;
     }
