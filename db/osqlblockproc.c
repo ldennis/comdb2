@@ -373,9 +373,19 @@ int osql_bplog_schemachange(struct ireq *iq)
     int rc = 0;
     int nops = 0;
     struct block_err err;
+    struct schema_change_type *sc;
 
     rc = apply_changes(iq, tran, NULL, &nops, &err, iq->sorese.osqllog,
                        osql_process_schemachange);
+
+    /* wait for all schema changes to finish */
+    sc = iq->sc_pending;
+    while (sc != NULL) {
+        pthread_mutex_lock(&sc->mtx);
+        sc->nothrevent = 1;
+        pthread_mutex_unlock(&sc->mtx);
+        sc = sc->sc_next;
+    }
 
     return rc;
 }
