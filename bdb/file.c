@@ -7268,6 +7268,109 @@ int bdb_get_first_logfile(bdb_state_type *bdb_state, int *bdberr)
     return lognum;
 }
 
+static inline int bdb_file_version_in_llmeta(bdb_state_type *bdb_state,
+                                             tran_type *tran,
+                                             unsigned long long file_version,
+                                             int *bdberr)
+{
+    int found_in_llmeta = 0;
+    unsigned long long version_num;
+    int rc = 0;
+    int i = 0;
+    /* try to find the file version amongst the active data files */
+    for (i = 0; i < bdb_state->numdtafiles; ++i) {
+        if (bdb_state->bdbtype == BDBTYPE_QUEUEDB) {
+            rc =
+                bdb_get_file_version_qdb(bdb_state, tran, &version_num, bdberr);
+        } else {
+            rc = bdb_get_file_version_data(bdb_state, tran, i, &version_num,
+                                           bdberr);
+        }
+        if (rc == 0) {
+            if (version_num == file_version) {
+                found_in_llmeta = 1;
+                break;
+            }
+        } else {
+            logmsg(LOGMSG_ERROR,
+                   "%s:%d failed to check llmeta for %s, file_version %llx, rc "
+                   "%d, bdberr %d\n",
+                   __func__, __LINE__, bdb_state->name, file_version, rc,
+                   *bdberr);
+            return -1;
+        }
+    }
+
+    /* try to find the file version amongst the active indices */
+    for (i = 0; !found_in_llmeta && i < bdb_state->numix; ++i) {
+        if (bdb_state->bdbtype == BDBTYPE_QUEUEDB)
+            break;
+        rc = bdb_get_file_version_index(bdb_state, tran, i /*dtanum*/,
+                                        &version_num, bdberr);
+        if (rc == 0) {
+            if (version_num == file_version)
+                found_in_llmeta = 1;
+        } else {
+            logmsg(LOGMSG_ERROR,
+                   "%s:%d failed to check llmeta for %s, file_version %llx, rc "
+                   "%d, bdberr %d\n",
+                   __func__, __LINE__, bdb_state->name, file_version, rc,
+                   *bdberr);
+            return -1;
+        }
+    }
+
+    return found_in_llmeta;
+}
+
+/* Lets check new prefix for ongoing schema changes:
+ * This is a bit of a kludge. We use the first 32 bytes of the table
+ * name as a key into llmeta. See bdb_open_int().
+ *
+ * Return 1 if file_version is currently being used as new.tblname
+ *
+ */
+static inline int bdb_is_new_sc_file(bdb_state_type *bdb_state, tran_type *tran,
+                                     unsigned long long file_version,
+                                     int *bdberr)
+{
+    char newname[32] = {0}; // LLMETA_TBLLEN = 32
+    snprintf(newname, 32, "%s%s", NEW_PREFIX, bdb_state->name);
+    bdb_state = bdb_get_table_by_name(bdb_state, newname);
+    if (!bdb_state) {
+        *bdberr = BDBERR_NOERROR;
+        return 0;
+    }
+    return bdb_file_version_in_llmeta(bdb_state, tran, file_version, bdberr);
+}
+
+static int bdb_file_version_in_use(bdb_state_type *bdb_state, tran_type *tran,
+                                   unsigned long long file_version, int *bdberr)
+{
+    int in_use = 0;
+    int rc = 0;
+    *bdberr = BDBERR_NOERROR;
+    in_use = bdb_is_new_sc_file(bdb_state, tran, file_version, bdberr);
+    if (in_use < 0) {
+        logmsg(LOGMSG_ERROR,
+               "%s:%d failed to check file for %s, file_version %llx, rc %d, "
+               "bdberr %d\n",
+               __func__, __LINE__, bdb_state->name, file_version, rc, *bdberr);
+        return -1;
+    }
+    if (in_use)
+        return 1;
+    in_use = bdb_file_version_in_llmeta(bdb_state, tran, file_version, bdberr);
+    if (in_use < 0) {
+        logmsg(LOGMSG_ERROR,
+               "%s:%d failed to check file for %s, file_version %llx, rc %d, "
+               "bdberr %d\n",
+               __func__, __LINE__, bdb_state->name, file_version, rc, *bdberr);
+        return -1;
+    }
+    return in_use;
+}
+
 static int bdb_process_unused_files(bdb_state_type *bdb_state, tran_type *tran,
                                     int *bdberr, char *powner, int delay)
 {
@@ -7280,7 +7383,6 @@ static int bdb_process_unused_files(bdb_state_type *bdb_state, tran_type *tran,
     int rc = 0;
     char table_prefix[80];
     unsigned long long file_version;
-    unsigned long long version_num;
 
     struct dirent *buf;
     struct dirent *ent;
@@ -7384,35 +7486,15 @@ static int bdb_process_unused_files(bdb_state_type *bdb_state, tran_type *tran,
              * actually using */
             if (file_version) {
                 int found_in_llmeta = 0;
-                int i;
-
-                /* try to find the file version amongst the active data files */
-                for (i = 0; i < bdb_state->numdtafiles; ++i) {
-                    if (bdb_state->bdbtype == BDBTYPE_QUEUEDB) {
-                        rc = bdb_get_file_version_qdb(bdb_state, tran,
-                                                      &version_num, bdberr);
-                    } else {
-                        rc = bdb_get_file_version_data(bdb_state, tran, i,
-                                                       &version_num, bdberr);
-                    }
-                    if (rc == 0) {
-                        if (version_num == file_version) {
-                            found_in_llmeta = 1;
-                            break;
-                        }
-                    }
-                }
-
-                /* try to find the file version amongst the active indices */
-                for (i = 0; !found_in_llmeta && i < bdb_state->numix; ++i) {
-                    if (bdb_state->bdbtype == BDBTYPE_QUEUEDB)
-                        break;
-                    rc = bdb_get_file_version_index(
-                        bdb_state, tran, i /*dtanum*/, &version_num, bdberr);
-                    if (rc == 0) {
-                        if (version_num == file_version)
-                            found_in_llmeta = 1;
-                    }
+                found_in_llmeta = bdb_file_version_in_use(bdb_state, tran,
+                                                          file_version, bdberr);
+                if (found_in_llmeta < 0 || *bdberr != BDBERR_NOERROR) {
+                    logmsg(LOGMSG_ERROR,
+                           "%s:%d failed to check file in use for %s, rc %d, "
+                           "bdberr %d\n",
+                           __func__, __LINE__, ent->d_name, file_version,
+                           found_in_llmeta, *bdberr);
+                    continue;
                 }
 
                 /* if the file's version wasn't found in llmeta, delete it */
