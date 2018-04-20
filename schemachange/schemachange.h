@@ -338,4 +338,7 @@ int do_dryrun(struct schema_change_type *);
 
 extern int gbl_test_scindex_deadlock;
 
+char *get_ddl_type_str(struct schema_change_type *s);
+char *get_ddl_csc2(struct schema_change_type *s);
+
 #endif

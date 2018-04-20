@@ -48,10 +48,7 @@ enum {
     LLMETA_ALIASLEN =
         63 /* maximum alias name, must be at least MAXALIASNAME in comdb2.h! */
     ,
-    LLMETA_URLLEN =
-        255 /* maximum target name, format [CLASS_]DBNAME.TBLNAME */,
-    LLMETA_SCERR_LEN =
-        128 /* maximum error string len for schema change status */
+    LLMETA_URLLEN = 255 /* maximum target name, format [CLASS_]DBNAME.TBLNAME */
 };
 
 /* this enum serves as a header for the llmeta keys */
@@ -3640,14 +3637,6 @@ static unsigned long long get_epochms(void)
     return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 
-typedef struct {
-    unsigned long long start;
-    int status;
-    unsigned long long last;
-    char errstr[LLMETA_SCERR_LEN];
-    int sc_data_len;
-} llmeta_sc_status_data;
-
 enum { LLMETA_SC_STATUS_DATA_LEN = 8 + 4 + 8 + LLMETA_SCERR_LEN + 4 };
 
 static uint8_t *
@@ -3842,6 +3831,7 @@ retry:
     /* add new entry */
     rc = bdb_lite_add(llmeta_bdb_state, trans, p_buf_start,
                       p_buf_end - p_buf_start, key, bdberr);
+    free(p_buf_start);
     if (rc && *bdberr != BDBERR_NOERROR)
         goto backout;
 
@@ -3882,6 +3872,88 @@ backout:
     return -1;
 }
 
+static int kv_get(void *k, size_t klen, void ***ret, int *num, int *bdberr);
+int bdb_llmeta_get_all_sc_status(llmeta_sc_status_data ***status_out,
+                                 void ***sc_data_out, int *num, int *bdberr)
+{
+    void **data = NULL;
+    int nkey = 0, rc = 1;
+    llmetakey_t k = htonl(LLMETA_SCHEMACHANGE_STATUS);
+    llmeta_sc_status_data **status = NULL;
+    void **sc_data = NULL;
+
+    *num = 0;
+    *status_out = NULL;
+    *sc_data_out = NULL;
+
+    rc = kv_get(&k, sizeof(k), &data, &nkey, bdberr);
+    if (rc) {
+        logmsg(LOGMSG_ERROR, "%s: failed kv_get rc %d\n", __func__, rc);
+        return -1;
+    }
+    if (nkey == 0)
+        return 0;
+    status = calloc(nkey, sizeof(llmeta_sc_status_data *));
+    if (status == NULL) {
+        logmsg(LOGMSG_ERROR, "%s: failed malloc\n", __func__);
+        *bdberr = BDBERR_MALLOC;
+        return -1;
+    }
+
+    sc_data = calloc(nkey, sizeof(void *));
+    if (sc_data == NULL) {
+        logmsg(LOGMSG_ERROR, "%s: failed malloc\n", __func__);
+        free(status);
+        *bdberr = BDBERR_MALLOC;
+        return -1;
+    }
+
+    for (int i = 0; i < nkey; i++) {
+        const uint8_t *p_buf;
+        status[i] = malloc(sizeof(llmeta_sc_status_data));
+        if (status[i] == NULL) {
+            logmsg(LOGMSG_ERROR, "%s: failed malloc\n", __func__);
+            *bdberr = BDBERR_MALLOC;
+            goto err;
+        }
+        p_buf = llmeta_sc_status_data_get(status[i], data[i],
+                                          (uint8_t *)(data[i]) +
+                                              sizeof(llmeta_sc_status_data));
+        sc_data[i] = malloc(status[i]->sc_data_len);
+        if (sc_data[i] == NULL) {
+            logmsg(LOGMSG_ERROR, "%s: failed malloc\n", __func__);
+            *bdberr = BDBERR_MALLOC;
+            goto err;
+        }
+
+        memcpy(sc_data[i], p_buf, status[i]->sc_data_len);
+    }
+
+    for (int i = 0; i < nkey; i++) {
+        if (data[i])
+            free(data[i]);
+    }
+    free(data);
+
+    *num = nkey;
+    *status_out = status;
+    *sc_data_out = sc_data;
+    return 0;
+
+err:
+    for (int i = 0; i < nkey; i++) {
+        if (data[i])
+            free(data[i]);
+        if (status[i])
+            free(status[i]);
+        if (sc_data[i])
+            free(sc_data[i]);
+    }
+    free(data);
+    free(status);
+    free(sc_data);
+    return -1;
+}
 /* updates the last processed genid for a stripe in the in progress schema
  * change. should only be used if schema change is not rebuilding main data
  * files because if it is you can simply query those for their highest genids
@@ -6033,7 +6105,6 @@ int bdb_llmeta_print_record(bdb_state_type *bdb_state, void *key, int keylen,
     case LLMETA_SCHEMACHANGE_STATUS: {
         struct llmeta_schema_change_type schema_change = {0};
         llmeta_sc_status_data sc_status_data = {0};
-        struct schema_change_type *s;
         void *sc_data = NULL;
 
         if (keylen < sizeof(schema_change) ||
@@ -6053,30 +6124,12 @@ int bdb_llmeta_print_record(bdb_state_type *bdb_state, void *key, int keylen,
         assert((uint8_t *)sc_data + sc_status_data.sc_data_len ==
                p_buf_end_data);
 
-        struct schema_change_type *new_schemachange_type();
-        int unpack_schema_change_type(struct schema_change_type * s,
-                                      void *packed, size_t packed_len);
-        char *get_ddl_type_str(struct schema_change_type * s);
-        char *get_ddl_csc2(struct schema_change_type * s);
-        s = new_schemachange_type();
-        if (!s) {
-            logmsg(LOGMSG_ERROR, "%s: ran out of memory\n", __func__);
-            *bdberr = BDBERR_MALLOC;
-            return -1;
-        }
-        if (unpack_schema_change_type(s, sc_data, sc_status_data.sc_data_len)) {
-            logmsg(LOGMSG_ERROR, "%s: failed to unpack schema change\n",
-                   __func__);
-            free(s);
-            return -1;
-        }
         logmsg(LOGMSG_USER,
-               "LLMETA_SCHEMACHANGE_STATUS: table=\"%s\" type=%s "
-               "newcsc2=\"%s\" start=%lld status=%d last=%lld errstr=\"%s\"\n",
-               schema_change.dbname, get_ddl_type_str(s), get_ddl_csc2(s),
-               sc_status_data.start, sc_status_data.status, sc_status_data.last,
+               "LLMETA_SCHEMACHANGE_STATUS: table=\"%s\" start=%lld status=%d "
+               "last=%lld errstr=\"%s\"\n",
+               schema_change.dbname, sc_status_data.start,
+               sc_status_data.status, sc_status_data.last,
                sc_status_data.errstr);
-        free(s);
     } break;
 
     case LLMETA_HIGH_GENID: {

@@ -28,6 +28,7 @@ const sqlite3_module systblTimepartShardsModule;
 const sqlite3_module systblTimepartEventsModule;
 
 int systblTypeSamplesInit(sqlite3 *db);
+int systblScStatusInit(sqlite3 *db);
 
 /* Simple yes/no answer for booleans */
 #define YESNO(x) ((x) ? "Y" : "N")
