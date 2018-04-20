@@ -707,10 +707,6 @@ int finalize_alter_table(struct ireq *iq, struct schema_change_type *s,
         goto backout;
     }
 
-    if ((rc = mark_schemachange_over_tran(db->tablename, transac))) {
-        goto backout;
-    }
-
     s->already_finalized = 1;
 
     /* remove the new.NUM. prefix */

@@ -29,6 +29,8 @@
 #include <openssl/rand.h>
 #include "logmsg.h"
 
+#include <sys/time.h>
+
 extern int gbl_maxretries;
 
 static bdb_state_type *llmeta_bdb_state = NULL; /* the low level meta table */
@@ -46,7 +48,10 @@ enum {
     LLMETA_ALIASLEN =
         63 /* maximum alias name, must be at least MAXALIASNAME in comdb2.h! */
     ,
-    LLMETA_URLLEN = 255 /* maximum target name, format [CLASS_]DBNAME.TBLNAME */
+    LLMETA_URLLEN =
+        255 /* maximum target name, format [CLASS_]DBNAME.TBLNAME */,
+    LLMETA_SCERR_LEN =
+        128 /* maximum error string len for schema change status */
 };
 
 /* this enum serves as a header for the llmeta keys */
@@ -159,7 +164,8 @@ typedef enum {
     LLMETA_DEFAULT_VERSIONED_SP = 43,
     LLMETA_TABLE_USER_SCHEMA = 44,
     LLMETA_USER_PASSWORD_HASH = 45,
-    LLMETA_FVER_FILE_TYPE_QDB = 46 /* file version for a dbqueue */
+    LLMETA_FVER_FILE_TYPE_QDB = 46 /* file version for a dbqueue */,
+    LLMETA_SCHEMACHANGE_STATUS = 47
 } llmetakey_t;
 
 struct llmeta_file_type_key {
@@ -3622,6 +3628,260 @@ retry:
     return 0;
 }
 
+static unsigned long long get_epochms(void)
+{
+    struct timeval tv;
+    int rc;
+    rc = gettimeofday(&tv, NULL);
+    if (rc) {
+        logmsg(LOGMSG_FATAL, "gettimeofday rc %d\n", rc);
+        abort();
+    }
+    return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
+
+typedef struct {
+    unsigned long long start;
+    int status;
+    unsigned long long last;
+    char errstr[LLMETA_SCERR_LEN];
+    int sc_data_len;
+} llmeta_sc_status_data;
+
+enum { LLMETA_SC_STATUS_DATA_LEN = 8 + 4 + 8 + LLMETA_SCERR_LEN + 4 };
+
+static uint8_t *
+llmeta_sc_status_data_put(const llmeta_sc_status_data *p_sc_status,
+                          uint8_t *p_buf, const uint8_t *p_buf_end)
+{
+    if (p_buf_end < p_buf || LLMETA_SC_STATUS_DATA_LEN > (p_buf_end - p_buf))
+        return NULL;
+
+    p_buf = buf_put(&(p_sc_status->start), sizeof(p_sc_status->start), p_buf,
+                    p_buf_end);
+
+    p_buf = buf_put(&(p_sc_status->status), sizeof(p_sc_status->status), p_buf,
+                    p_buf_end);
+
+    p_buf = buf_put(&(p_sc_status->last), sizeof(p_sc_status->last), p_buf,
+                    p_buf_end);
+
+    p_buf = buf_no_net_put(&(p_sc_status->errstr), LLMETA_SCERR_LEN, p_buf,
+                           p_buf_end);
+
+    p_buf = buf_put(&(p_sc_status->sc_data_len),
+                    sizeof(p_sc_status->sc_data_len), p_buf, p_buf_end);
+
+    return p_buf;
+}
+
+static const uint8_t *
+llmeta_sc_status_data_get(llmeta_sc_status_data *p_sc_status,
+                          const uint8_t *p_buf, const uint8_t *p_buf_end)
+{
+    if (p_buf_end < p_buf || LLMETA_SC_STATUS_DATA_LEN > (p_buf_end - p_buf))
+        return NULL;
+
+    p_buf = buf_get(&(p_sc_status->start), sizeof(p_sc_status->start), p_buf,
+                    p_buf_end);
+
+    p_buf = buf_get(&(p_sc_status->status), sizeof(p_sc_status->status), p_buf,
+                    p_buf_end);
+
+    p_buf = buf_get(&(p_sc_status->last), sizeof(p_sc_status->last), p_buf,
+                    p_buf_end);
+
+    p_buf = buf_no_net_get(&(p_sc_status->errstr), sizeof(p_sc_status->errstr),
+                           p_buf, p_buf_end);
+
+    p_buf = buf_get(&(p_sc_status->sc_data_len),
+                    sizeof(p_sc_status->sc_data_len), p_buf, p_buf_end);
+
+    return p_buf;
+}
+
+int bdb_set_schema_change_status(tran_type *input_trans, const char *db_name,
+                                 void *schema_change_data,
+                                 size_t schema_change_data_len, int status,
+                                 const char *errstr, int *bdberr)
+{
+    int retries = 0, rc;
+    char key[LLMETA_IXLEN] = {0};
+    size_t key_offset = 0;
+    tran_type *trans;
+    uint8_t *p_buf, *p_buf_start, *p_buf_end;
+    struct llmeta_schema_change_type schema_change = {0};
+    uint8_t *data = NULL;
+    int datalen;
+    llmeta_sc_status_data sc_status_data = {0};
+
+    if (!llmeta_bdb_state) {
+        logmsg(LOGMSG_ERROR, "%s: no llmeta_bdb_state\n", __func__);
+        *bdberr = BDBERR_MISC;
+        return -1;
+    }
+
+    if (!db_name || (!schema_change_data && schema_change_data_len) ||
+        (schema_change_data && !schema_change_data_len) || !bdberr) {
+        logmsg(LOGMSG_ERROR, "%s: NULL or inconsistant argument\n", __func__);
+        if (bdberr)
+            *bdberr = BDBERR_BADARGS;
+        return -1;
+    }
+
+    if (bdb_get_type(llmeta_bdb_state) != BDBTYPE_LITE) {
+        logmsg(LOGMSG_ERROR, "%s: llmeta db not lite\n", __func__);
+        *bdberr = BDBERR_BADARGS;
+        return -1;
+    }
+
+    /*add the key type */
+    schema_change.file_type = LLMETA_SCHEMACHANGE_STATUS;
+
+    /*copy the table name and check its length so that we have a clean key*/
+    strncpy(schema_change.dbname, db_name, sizeof(schema_change.dbname));
+    schema_change.dbname_len = strlen(schema_change.dbname) + 1;
+
+    p_buf_start = p_buf = (uint8_t *)key;
+    p_buf_end = p_buf_start + LLMETA_IXLEN;
+
+    if (!(p_buf = llmeta_schema_change_type_put(&schema_change, p_buf,
+                                                p_buf_end))) {
+        logmsg(LOGMSG_ERROR, "%s: llmeta_schema_change_type_put returns NULL\n",
+               __func__);
+        logmsg(LOGMSG_ERROR, "%s: check the length of db_name\n", __func__);
+        *bdberr = BDBERR_MISC;
+        return -1;
+    }
+
+    key_offset = p_buf - p_buf_start;
+
+retry:
+    if (++retries >= 500 /*gbl_maxretries*/) {
+        logmsg(LOGMSG_ERROR, "%s: giving up after %d retries\n", __func__,
+               retries);
+        return -1;
+    }
+
+    /*if the user didn't give us a transaction, create our own*/
+    if (!input_trans) {
+        trans = bdb_tran_begin(llmeta_bdb_state, NULL, bdberr);
+        if (!trans) {
+            if (*bdberr == BDBERR_DEADLOCK)
+                goto retry;
+
+            logmsg(LOGMSG_ERROR, "%s: failed to get transaction, rc:%d\n",
+                   __func__, *bdberr);
+            return -1;
+        }
+    } else
+        trans = input_trans;
+
+    /* try to fetch the existing schema change status */
+    rc = bdb_lite_exact_var_fetch_tran(llmeta_bdb_state, trans, key,
+                                       (void **)&data, &datalen, bdberr);
+
+    /* handle return codes */
+    if (rc || *bdberr != BDBERR_NOERROR) {
+
+        if (*bdberr == BDBERR_DEADLOCK)
+            goto backout;
+
+        /* it's ok if no data was found, fail on all other errors*/
+        if (*bdberr != BDBERR_FETCH_DTA)
+            goto backout;
+    } else {
+        void *sc_data = NULL;
+        assert(data != NULL);
+        assert(datalen != 0);
+
+        sc_data = (void *)llmeta_sc_status_data_get(&sc_status_data, data,
+                                                    data + datalen);
+        assert((uint8_t *)sc_data + sc_status_data.sc_data_len ==
+               data + datalen);
+
+        if (schema_change_data == NULL && schema_change_data_len == 0) {
+            schema_change_data = sc_data;
+            schema_change_data_len = sc_status_data.sc_data_len;
+            assert(schema_change_data != NULL && schema_change_data_len != 0);
+        }
+
+        /* delete old entry */
+        rc = bdb_lite_exact_del(llmeta_bdb_state, trans, key, bdberr);
+        if (rc && *bdberr != BDBERR_NOERROR && *bdberr != BDBERR_DEL_DTA)
+            goto backout;
+    }
+
+    /* update status */
+    if (status == BDB_SC_RUNNING)
+        sc_status_data.start = get_epochms();
+    sc_status_data.status = status;
+    sc_status_data.last = get_epochms();
+    snprintf(sc_status_data.errstr, LLMETA_SCERR_LEN, "%s",
+             errstr ? errstr : "");
+    sc_status_data.sc_data_len = schema_change_data_len;
+
+    assert(schema_change_data != NULL && schema_change_data_len != 0);
+
+    /* prepare data payload */
+    p_buf_start = p_buf =
+        malloc(sizeof(sc_status_data) + schema_change_data_len);
+    if (p_buf == NULL) {
+        logmsg(LOGMSG_ERROR, "%s: failed to malloc %lu\n", __func__,
+               sizeof(sc_status_data) + schema_change_data_len);
+        *bdberr = BDBERR_MALLOC;
+        goto backout;
+    }
+    p_buf_end = p_buf_start + sizeof(sc_status_data) + schema_change_data_len;
+
+    p_buf = llmeta_sc_status_data_put(&sc_status_data, p_buf, p_buf_end);
+    assert(p_buf != NULL && p_buf_end > p_buf &&
+           (p_buf_end - p_buf) >= schema_change_data_len);
+    memcpy(p_buf, schema_change_data, schema_change_data_len);
+
+    /* add new entry */
+    rc = bdb_lite_add(llmeta_bdb_state, trans, p_buf_start,
+                      p_buf_end - p_buf_start, key, bdberr);
+    if (rc && *bdberr != BDBERR_NOERROR)
+        goto backout;
+
+    /*commit if we created our own transaction*/
+    if (!input_trans) {
+        rc = bdb_tran_commit(llmeta_bdb_state, trans, bdberr);
+        if (rc && *bdberr != BDBERR_NOERROR)
+            return -1;
+    }
+
+    if (data)
+        free(data);
+
+    *bdberr = BDBERR_NOERROR;
+    return 0;
+
+backout:
+    /*if we created the transaction*/
+    if (!input_trans) {
+        int prev_bdberr = *bdberr;
+
+        /*kill the transaction*/
+        rc = bdb_tran_abort(llmeta_bdb_state, trans, bdberr);
+        if (rc && !BDBERR_NOERROR) {
+            logmsg(LOGMSG_ERROR, "%s: trans abort failed with bdberr %d\n",
+                   __func__, *bdberr);
+            return -1;
+        }
+
+        *bdberr = prev_bdberr;
+        if (*bdberr == BDBERR_DEADLOCK)
+            goto retry;
+
+        logmsg(LOGMSG_ERROR, "%s: failed with bdberr %d\n", __func__, *bdberr);
+    }
+    if (data)
+        free(data);
+    return -1;
+}
+
 /* updates the last processed genid for a stripe in the in progress schema
  * change. should only be used if schema change is not rebuilding main data
  * files because if it is you can simply query those for their highest genids
@@ -5768,6 +6028,55 @@ int bdb_llmeta_print_record(bdb_state_type *bdb_state, void *key, int keylen,
 
        logmsg(LOGMSG_USER, "LLMETA_IN_SCHEMA_CHANGE: table=\"%s\" %s\n", akey.dbname,
                (datalen == 0) ? "done" : "in progress");
+    } break;
+
+    case LLMETA_SCHEMACHANGE_STATUS: {
+        struct llmeta_schema_change_type schema_change = {0};
+        llmeta_sc_status_data sc_status_data = {0};
+        struct schema_change_type *s;
+        void *sc_data = NULL;
+
+        if (keylen < sizeof(schema_change) ||
+            datalen < sizeof(llmeta_sc_status_data)) {
+            logmsg(LOGMSG_USER,
+                   "%s:%d: wrong LLMETA_SCHEMACHANGE_STATUS entry\n", __FILE__,
+                   __LINE__);
+            *bdberr = BDBERR_MISC;
+            return -1;
+        }
+
+        p_buf_key = llmeta_schema_change_type_get(&schema_change, p_buf_key,
+                                                  p_buf_end_key);
+
+        sc_data = (void *)llmeta_sc_status_data_get(&sc_status_data, p_buf_data,
+                                                    p_buf_end_data);
+        assert((uint8_t *)sc_data + sc_status_data.sc_data_len ==
+               p_buf_end_data);
+
+        struct schema_change_type *new_schemachange_type();
+        int unpack_schema_change_type(struct schema_change_type * s,
+                                      void *packed, size_t packed_len);
+        char *get_ddl_type_str(struct schema_change_type * s);
+        char *get_ddl_csc2(struct schema_change_type * s);
+        s = new_schemachange_type();
+        if (!s) {
+            logmsg(LOGMSG_ERROR, "%s: ran out of memory\n", __func__);
+            *bdberr = BDBERR_MALLOC;
+            return -1;
+        }
+        if (unpack_schema_change_type(s, sc_data, sc_status_data.sc_data_len)) {
+            logmsg(LOGMSG_ERROR, "%s: failed to unpack schema change\n",
+                   __func__);
+            free(s);
+            return -1;
+        }
+        logmsg(LOGMSG_USER,
+               "LLMETA_SCHEMACHANGE_STATUS: table=\"%s\" type=%s "
+               "newcsc2=\"%s\" start=%lld status=%d last=%lld errstr=\"%s\"\n",
+               schema_change.dbname, get_ddl_type_str(s), get_ddl_csc2(s),
+               sc_status_data.start, sc_status_data.status, sc_status_data.last,
+               sc_status_data.errstr);
+        free(s);
     } break;
 
     case LLMETA_HIGH_GENID: {

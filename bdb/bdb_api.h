@@ -1472,6 +1472,12 @@ int bdb_get_in_schema_change(tran_type *input_trans, const char *db_name,
                              void **schema_change_data,
                              size_t *schema_change_data_len, int *bdberr);
 
+enum { BDB_SC_RUNNING, BDB_SC_COMMITTED, BDB_SC_ABORTED };
+int bdb_set_schema_change_status(tran_type *input_trans, const char *db_name,
+                                 void *schema_change_data,
+                                 size_t schema_change_data_len, int status,
+                                 const char *errstr, int *bdberr);
+
 int bdb_set_high_genid(tran_type *input_trans, const char *db_name,
                        unsigned long long genid, int *bdberr);
 int bdb_set_high_genid_stripe(tran_type *input_trans, const char *db_name,

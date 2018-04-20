@@ -101,6 +101,9 @@ static int mark_sc_in_llmeta_tran(struct schema_change_type *s, void *trans)
              retries < max_retries &&
              (bdb_set_in_schema_change(trans, s->table, packed_sc_data,
                                        packed_sc_data_len, &bdberr) ||
+              bdb_set_schema_change_status(trans, s->table, packed_sc_data,
+                                           packed_sc_data_len, BDB_SC_RUNNING,
+                                           NULL, &bdberr) ||
               bdberr != BDBERR_NOERROR);
              ++retries) {
             sc_errf(s, "could not mark schema change in progress in the "
@@ -255,7 +258,7 @@ static int do_finalize(ddl_t func, struct ireq *iq,
                        struct schema_change_type *s, tran_type *input_tran,
                        scdone_t type)
 {
-    int rc;
+    int rc, bdberr = 0;
     tran_type *tran = input_tran;
 
     if (tran == NULL) {
@@ -275,6 +278,17 @@ static int do_finalize(ddl_t func, struct ireq *iq,
             sc_del_unused_files(s->db);
         }
         return rc;
+    }
+
+    if ((rc = mark_schemachange_over_tran(s->db->tablename, tran)))
+        return rc;
+
+    if (bdb_set_schema_change_status(tran, s->table, NULL, 0, BDB_SC_COMMITTED,
+                                     errstat_get_str(&iq->errstat), &bdberr) ||
+        bdberr != BDBERR_NOERROR) {
+        logmsg(LOGMSG_ERROR,
+               "%s: failed to set bdb schema change status, bdberr %d\n",
+               __func__, bdberr);
     }
 
     if (input_tran == NULL) {
@@ -332,7 +346,7 @@ static int check_table_version(struct ireq *iq, struct schema_change_type *sc)
 static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq,
                   struct schema_change_type *s, tran_type *tran, scdone_t type)
 {
-    int rc;
+    int rc, bdberr = 0;
     if (s->finalize_only) {
         return s->sc_rc;
     }
@@ -357,6 +371,14 @@ static int do_ddl(ddl_t pre, ddl_t post, struct ireq *iq,
     if (rc) {
         mark_schemachange_over_tran(s->table, NULL); // non-tran ??
         broadcast_sc_end(s->table, iq->sc_seed);
+        if (bdb_set_schema_change_status(
+                NULL, s->table, NULL, 0, BDB_SC_ABORTED,
+                errstat_get_str(&iq->errstat), &bdberr) ||
+            bdberr != BDBERR_NOERROR) {
+            logmsg(LOGMSG_ERROR,
+                   "%s: failed to set bdb schema change status, bdberr %d\n",
+                   __func__, bdberr);
+        }
     } else if (s->finalize) {
         wrlock_schema_lk();
         rc = do_finalize(post, iq, s, tran, type);
@@ -418,6 +440,47 @@ int do_alter_stripes(struct schema_change_type *s)
         push_next_log();
 
     return rc;
+}
+
+char *get_ddl_type_str(struct schema_change_type *s)
+{
+    if (s->addsp)
+        return "ADDSP";
+    else if (s->delsp)
+        return "DELSP";
+    else if (s->defaultsp)
+        return "DEFAULTSP";
+    else if (s->showsp)
+        return "SHOWSP";
+    else if (s->is_trigger)
+        return "IS_TRIGGER";
+    else if (s->is_sfunc)
+        return "IS_SFUNC";
+    else if (s->is_afunc)
+        return "IS_AFUNC";
+    else if (s->fastinit && s->drop_table)
+        return "DROP";
+    else if (s->fastinit)
+        return "TRUNCATE";
+    else if (s->addonly)
+        return "CREATE";
+    else if (s->rename)
+        return "RENAME";
+    else if (s->fulluprecs || s->partialuprecs)
+        return "UPGRADE";
+    else if (s->type == DBTYPE_TAGGED_TABLE)
+        return "ALTER";
+    else if (s->type == DBTYPE_QUEUE)
+        return "ALTER QUEUE";
+    else if (s->type == DBTYPE_MORESTRIPE)
+        return "ALTER STRIPE";
+
+    return "UNKNOWN";
+}
+
+char *get_ddl_csc2(struct schema_change_type *s)
+{
+    return s->newcsc2 ? s->newcsc2 : "";
 }
 
 int do_schema_change_tran(sc_arg_t *arg)
@@ -1174,6 +1237,7 @@ int backout_schema_changes(struct ireq *iq, tran_type *tran)
 
 int scdone_abort_cleanup(struct ireq *iq)
 {
+    int bdberr = 0;
     struct schema_change_type *s = iq->sc;
     mark_schemachange_over(s->table);
     sc_set_running(s->table, 0, iq->sc_seed, gbl_mynode, time(NULL));
@@ -1183,5 +1247,12 @@ int scdone_abort_cleanup(struct ireq *iq)
         sc_del_unused_files(s->db);
     }
     broadcast_sc_end(s->table, iq->sc_seed);
+    if (bdb_set_schema_change_status(NULL, s->table, NULL, 0, BDB_SC_ABORTED,
+                                     errstat_get_str(&iq->errstat), &bdberr) ||
+        bdberr != BDBERR_NOERROR) {
+        logmsg(LOGMSG_ERROR,
+               "%s: failed to set bdb schema change status, bdberr %d\n",
+               __func__, bdberr);
+    }
     return 0;
 }
