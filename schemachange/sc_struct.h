@@ -38,4 +38,7 @@ int schema_change_headers(struct schema_change_type *s);
 struct schema_change_type *
 clone_schemachange_type(struct schema_change_type *sc);
 
+int add_ongoing_alter(struct schema_change_type *sc);
+int remove_ongoing_alter(struct schema_change_type *sc);
+
 #endif
