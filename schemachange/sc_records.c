@@ -110,12 +110,14 @@ static inline int print_global_sc_stat(struct convert_record_data *data,
     /* totals across all threads */
     if (data->scanmode != SCAN_PARALLEL) return 1;
 
-    long long total_nrecs_diff = gbl_sc_nrecs - gbl_sc_prev_nrecs;
+    long long total_nrecs_diff = data->s->nrecs - data->s->prev_nrecs;
+    data->s->prev_nrecs = data->s->nrecs;
     gbl_sc_prev_nrecs = gbl_sc_nrecs;
-    sc_printf(data->s, "progress TOTAL %lld +%lld actual "
-                       "progress total %lld rate %lld r/s\n",
-              gbl_sc_nrecs, total_nrecs_diff,
-              gbl_sc_nrecs - (gbl_sc_adds + gbl_sc_updates),
+    sc_printf(data->s,
+              "progress TOTAL %lld +%lld actual "
+              "progress total %lld rate %lld r/s\n",
+              data->s->nrecs, total_nrecs_diff,
+              data->s->nrecs - (gbl_sc_adds + gbl_sc_updates),
               total_nrecs_diff / sc_report_freq);
     return 1;
 }
@@ -955,7 +957,7 @@ err: /*if (is_schema_change_doomed())*/
 
     if (data->live) delay_sc_if_needed(data, &ss);
 
-    gbl_sc_nrecs++;
+    ATOMIC_ADD(data->s->nrecs, 1);
 
     int now = comdb2_time_epoch();
     if ((rc = report_sc_progress(data, now))) return rc;
@@ -1121,6 +1123,7 @@ int convert_all_records(struct dbtable *from, struct dbtable *to,
     data.scanmode = s->scanmode;
     data.sc_genids = sc_genids;
     data.s = s;
+    s->nrecs = s->prev_nrecs = 0;
 
     if (data.live && data.scanmode != SCAN_PARALLEL) {
         sc_errf(data.s, "live schema change can only be done in parallel "
@@ -1488,6 +1491,7 @@ static int upgrade_records(struct convert_record_data *data)
     } // end of rc check
 
     ++gbl_sc_nrecs;
+    ATOMIC_ADD(data->s->nrecs, 1);
     data->sc_genids[data->stripe] = genid;
     now = comdb2_time_epoch();
 
@@ -1618,6 +1622,7 @@ int upgrade_all_records(struct dbtable *db, unsigned long long *sc_genids,
     data.sc_genids = sc_genids;
     data.s = s;
     data.scanmode = s->scanmode;
+    s->nrecs = s->prev_nrecs = 0;
 
     // set up internal block request
     init_fake_ireq(thedb, &data.iq);

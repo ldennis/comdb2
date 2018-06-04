@@ -186,6 +186,9 @@ struct schema_change_type {
 
     int already_finalized;
 
+    long long nrecs;
+    long long prev_nrecs;
+
     /*********************** temporary fields for sbuf packing
      * ************************/
     /*********************** not needed for anything else

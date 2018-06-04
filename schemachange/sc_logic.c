@@ -690,6 +690,7 @@ int resume_schema_change(void)
 
     /* if a schema change is currently running don't try to resume one */
     sc_set_running(NULL, 0, 0, NULL, 0);
+    clear_ongoing_alter();
 
     pthread_mutex_lock(&sc_resuming_mtx);
     sc_resuming = NULL;

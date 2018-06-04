@@ -39,6 +39,9 @@ int gbl_default_plannedsc = 1;
 int gbl_default_sc_scanmode = SCAN_PARALLEL;
 hash_t *sc_tables = NULL;
 
+pthread_mutex_t ongoing_alter_mtx = PTHREAD_MUTEX_INITIALIZER;
+hash_t *ongoing_alters = NULL;
+
 pthread_mutex_t sc_resuming_mtx = PTHREAD_MUTEX_INITIALIZER;
 struct schema_change_type *sc_resuming = NULL;
 
@@ -59,8 +62,6 @@ int gbl_sc_last_writer_time = 0;
 
 /* updates/deletes done behind the cursor since schema change started */
 pthread_mutex_t gbl_sc_lock = PTHREAD_MUTEX_INITIALIZER;
-/* boolean value set to nonzero if table rebuild is in progress */
-int doing_conversion = 0;
 /* boolean value set to nonzero if table upgrade is in progress */
 int doing_upgrade = 0;
 unsigned gbl_sc_adds;
@@ -254,6 +255,7 @@ void sc_status(struct dbenv *dbenv)
         sctbl = hash_first(sc_tables, &ent, &bkt);
     while (gbl_schema_change_in_progress && sctbl) {
         const char *mach = get_hostname_with_crc32(thedb->bdb_env, sctbl->host);
+        struct schema_change_type *s = NULL;
         time_t timet = sctbl->time;
         struct tm tm;
         localtime_r(&timet, &tm);
@@ -266,9 +268,10 @@ void sc_status(struct dbenv *dbenv)
                "table %s\n",
                mach ? mach : "(unknown)", tm.tm_year + 1900, tm.tm_mon + 1,
                tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, sctbl->table);
-        if (doing_conversion) {
+        s = find_ongoing_alter(sctbl->table);
+        if (s != NULL) {
             logmsg(LOGMSG_USER, "Conversion phase running %lld converted\n",
-                   gbl_sc_nrecs);
+                   s->nrecs);
         } else if (doing_upgrade) {
             logmsg(LOGMSG_USER, "Upgrade phase running %lld upgraded\n",
                    gbl_sc_nrecs);
@@ -347,4 +350,48 @@ int is_table_in_schema_change(const char *tbname, tran_type *tran)
         return rc;
     }
     return 0;
+}
+
+void add_ongoing_alter(struct schema_change_type *sc)
+{
+    assert(s->alteronly);
+    pthread_mutex_lock(&ongoing_alter_mtx);
+    if (ongoing_alters == NULL) {
+        ongoing_alters =
+            hash_init_strcase(offsetof(struct schema_change_type, table));
+    }
+    hash_add(ongoing_alters, sc);
+    pthread_mutex_unlock(&ongoing_alter_mtx);
+}
+
+void remove_ongoing_alter(struct schema_change_type *sc)
+{
+    assert(s->alteronly);
+    pthread_mutex_lock(&ongoing_alter_mtx);
+    if (ongoing_alters != NULL) {
+        hash_del(ongoing_alters, sc);
+    }
+    pthread_mutex_unlock(&ongoing_alter_mtx);
+}
+
+struct schema_change_type *find_ongoing_alter(char *table)
+{
+    struct schema_change_type *s = NULL;
+    pthread_mutex_lock(&ongoing_alter_mtx);
+    if (ongoing_alters != NULL) {
+        struct schema_change_type key = {0};
+        strncpy(key.table, table, sizeof(key.table));
+        s = hash_find_readonly(ongoing_alters, &key);
+    }
+    pthread_mutex_unlock(&ongoing_alter_mtx);
+    return s;
+}
+
+void clear_ongoing_alter()
+{
+    pthread_mutex_lock(&ongoing_alter_mtx);
+    if (ongoing_alters != NULL) {
+        hash_clear(ongoing_alters);
+    }
+    pthread_mutex_unlock(&ongoing_alter_mtx);
 }

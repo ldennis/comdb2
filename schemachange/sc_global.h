@@ -89,4 +89,9 @@ void reset_sc_stat();
 int reload_lua();
 int replicant_reload_analyze_stats();
 
+void add_ongoing_alter(struct schema_change_type *sc);
+void remove_ongoing_alter(struct schema_change_type *sc);
+struct schema_change_type *find_ongoing_alter(char *table);
+void clear_ongoing_alter();
+
 #endif

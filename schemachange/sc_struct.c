@@ -1003,30 +1003,3 @@ clone_schemachange_type(struct schema_change_type *sc)
     free(buf);
     return newsc;
 }
-
-pthread_mutex_t ongoing_alter_mtx = PTHREAD_MUTEX_INITIALIZER;
-hash_t *ongoing_alters = NULL;
-
-int add_ongoing_alter(struct schema_change_type *sc)
-{
-    pthread_mutex_lock(&ongoing_alter_mtx);
-    if (ongoing_alters == NULL) {
-        ongoing_alters =
-            hash_init_strcase(offsetof(struct schema_change_type, table));
-    }
-    hash_add(ongoing_alters, sc);
-    pthread_mutex_unlock(&ongoing_alter_mtx);
-    return 0;
-}
-
-int remove_ongoing_alter(struct schema_change_type *sc)
-{
-    pthread_mutex_lock(&ongoing_alter_mtx);
-    if (ongoing_alters == NULL) {
-        ongoing_alters =
-            hash_init_strcase(offsetof(struct schema_change_type, table));
-    }
-    hash_del(ongoing_alters, sc);
-    pthread_mutex_unlock(&ongoing_alter_mtx);
-    return 0;
-}

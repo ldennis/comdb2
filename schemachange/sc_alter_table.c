@@ -558,18 +558,20 @@ int do_alter_table(struct ireq *iq, struct schema_change_type *s,
         return rc;
     }
 
+    add_ongoing_alter(s);
+
     /* skip converting records for fastinit and planned schema change
      * that doesn't require rebuilding anything. */
     if ((!newdb->plan || newdb->plan->plan_convert) ||
         changed == SC_CONSTRAINT_CHANGE) {
-        doing_conversion = 1;
         if (!s->live)
             gbl_readonly_sc = 1;
         rc = convert_all_records(db, newdb, newdb->sc_genids, s);
         if (rc == 1) rc = 0;
-        doing_conversion = 0;
     } else
         rc = 0;
+
+    remove_ongoing_alter(s);
 
     if (stopsc || rc == SC_MASTER_DOWNGRADE)
         rc = SC_MASTER_DOWNGRADE;
