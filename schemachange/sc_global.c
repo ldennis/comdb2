@@ -379,9 +379,7 @@ struct schema_change_type *find_ongoing_alter(char *table)
     struct schema_change_type *s = NULL;
     pthread_mutex_lock(&ongoing_alter_mtx);
     if (ongoing_alters != NULL) {
-        struct schema_change_type key = {0};
-        strncpy(key.table, table, sizeof(key.table));
-        s = hash_find_readonly(ongoing_alters, &key);
+        s = hash_find_readonly(ongoing_alters, table);
     }
     pthread_mutex_unlock(&ongoing_alter_mtx);
     return s;

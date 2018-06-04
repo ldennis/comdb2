@@ -11,12 +11,13 @@
 #include "schemachange.h"
 
 struct sc_status_ent {
-    char *table;
+    char *name;
     char *type;
     char *newcsc2;
     cdb2_client_datetime_t start;
     char *status;
     cdb2_client_datetime_t lastupdated;
+    int64_t converted;
     char *error;
 };
 
@@ -66,7 +67,7 @@ int get_status(void **data, int *npoints)
                    __func__);
             return SQLITE_INTERNAL;
         }
-        sc_status_ents[i].table = strdup(sc.table);
+        sc_status_ents[i].name = strdup(sc.table);
         sc_status_ents[i].type = strdup(get_ddl_type_str(&sc));
         sc_status_ents[i].newcsc2 = strdup(get_ddl_csc2(&sc));
 
@@ -84,6 +85,14 @@ int get_status(void **data, int *npoints)
             &d, "UTC",
             (cdb2_client_datetime_t *)&(sc_status_ents[i].lastupdated));
         sc_status_ents[i].status = strdup(status_num2str(status[i]->status));
+
+        struct schema_change_type *find_ongoing_alter(char *table);
+        struct schema_change_type *ongoing = find_ongoing_alter(sc.table);
+        if (ongoing)
+            sc_status_ents[i].converted = ongoing->nrecs;
+        else
+            sc_status_ents[i].converted = -1;
+
         sc_status_ents[i].error = strdup(status[i]->errstr);
 
         sc.onstack = 1;
@@ -104,8 +113,8 @@ void free_status(void *p, int n)
 {
     struct sc_status_ent *sc_status_ents = p;
     for (int i = 0; i < n; i++) {
-        if (sc_status_ents[i].table)
-            free(sc_status_ents[i].table);
+        if (sc_status_ents[i].name)
+            free(sc_status_ents[i].name);
         if (sc_status_ents[i].type)
             free(sc_status_ents[i].type);
         if (sc_status_ents[i].newcsc2)
@@ -122,12 +131,13 @@ int systblScStatusInit(sqlite3 *db)
 {
     return create_system_table(
         db, "comdb2_sc_status", get_status, free_status,
-        sizeof(struct sc_status_ent), CDB2_CSTRING, "table",
-        offsetof(struct sc_status_ent, table), CDB2_CSTRING, "type",
+        sizeof(struct sc_status_ent), CDB2_CSTRING, "name",
+        offsetof(struct sc_status_ent, name), CDB2_CSTRING, "type",
         offsetof(struct sc_status_ent, type), CDB2_CSTRING, "newcsc2",
         offsetof(struct sc_status_ent, newcsc2), CDB2_DATETIME, "start",
         offsetof(struct sc_status_ent, start), CDB2_CSTRING, "status",
         offsetof(struct sc_status_ent, status), CDB2_DATETIME, "last_updated",
-        offsetof(struct sc_status_ent, lastupdated), CDB2_CSTRING, "error",
+        offsetof(struct sc_status_ent, lastupdated), CDB2_INTEGER, "converted",
+        offsetof(struct sc_status_ent, converted), CDB2_CSTRING, "error",
         offsetof(struct sc_status_ent, error), SYSTABLE_END_OF_FIELDS);
 }
