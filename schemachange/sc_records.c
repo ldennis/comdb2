@@ -855,7 +855,7 @@ static int convert_record(struct convert_record_data *data)
         }
     }
 
-err: /*if (is_schema_change_doomed())*/
+err:
     if (gbl_sc_abort || data->from->sc_abort ||
         (data->s->iq && data->s->iq->sc_should_abort)) {
         /*

@@ -101,7 +101,7 @@ struct schema_change_type {
     int compress_blobs; /* new blob com algorithm or -1 for no change */
     int ip_updates;     /* inplace updates or -1 for no change */
     int instant_sc;     /* 1 is enable, 0 disable, or -1 for no change */
-    int doom;
+    int preempted;
     int use_plan;         /* if we want to use a plan so we don't rebuild
                              everything needlessly. */
     int commit_sleep;     /* Used for testing; sleep a bit before committing
@@ -245,6 +245,15 @@ enum schema_change_resume {
     SC_NOT_RESUME = 0,
     SC_RESUME = 1,
     SC_NEW_MASTER_RESUME = 2
+};
+
+enum schema_change_preempt {
+    SC_ACTION_NONE = 0,
+    SC_ACTION_PAUSE = 1,
+    SC_ACTION_RESUME = 2,
+    SC_ACTION_DETACH = 3,
+    SC_ACTION_COMMIT = 4,
+    SC_ACTION_ABORT = 5
 };
 
 #include <bdb_schemachange.h>

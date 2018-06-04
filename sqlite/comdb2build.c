@@ -4877,3 +4877,40 @@ cleanup:
     free(t_value);
     return;
 }
+
+void comdb2SchemachangeControl(Parse* pParse, int action, Token* nm, Token* lnm)
+{
+    Vdbe *v  = sqlite3GetVdbe(pParse);
+    char *t_action = NULL;
+
+    struct schema_change_type* sc = new_schemachange_type();
+
+    if (sc == NULL) {
+        setError(pParse, SQLITE_NOMEM, "System out of memory");
+        return;
+    }
+
+    sc->preempted = action;
+
+    if (chkAndCopyTableTokens(v, pParse,sc->table, nm, lnm, 1))
+        goto out;
+
+    if (authenticateSC(sc->table, pParse))
+        goto out;
+
+    if(get_csc2_file(sc->table, -1 , &sc->newcsc2, NULL ))
+    {
+        logmsg(LOGMSG_ERROR, "%s: table schema not found: %s\n", __func__,
+               sc->table);
+        setError(pParse, SQLITE_ERROR, "Table schema cannot be found");
+        goto out;
+    }
+    comdb2PrepareSC(v, pParse, 0, sc, &comdb2SqlSchemaChange_usedb,
+                    (vdbeFuncArgFree)&free_schema_change_type);
+    return;
+
+out:
+    if (t_action)
+        free(t_action);
+    free_schema_change_type(sc);
+}

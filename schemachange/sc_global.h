@@ -74,7 +74,7 @@ extern int gbl_sc_thd_failed;
  * schema change is in progress then they have to do extra stuff. */
 extern pthread_rwlock_t sc_live_rwlock;
 
-extern int schema_change; /*static int schema_change_doomed = 0;*/
+extern int schema_change;
 extern int stopsc;        /* stop schemachange, so it can resume */
 
 int is_dta_being_rebuilt(struct scplan *plan);

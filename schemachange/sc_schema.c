@@ -587,7 +587,6 @@ void verify_schema_change_constraint(struct ireq *iq, struct dbtable *currdb,
     /* if there's no schema change in progress, nothing to verify */
     if (!currdb || !currdb->sc_to) return;
 
-    /* if (is_schema_change_doomed()) */
     if (gbl_sc_abort || currdb->sc_abort || iq->sc_should_abort)
         return;
 

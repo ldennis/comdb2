@@ -51,6 +51,13 @@ int start_schema_change_tran(struct ireq *iq, tran_type *trans)
         return SC_NOT_MASTER;
     }
 
+    /* not implemented: skipping for now */
+    if (s->preempted) {
+        sc_errf(s, "Unsupported preempt option %d\n", s->preempted);
+        free_schema_change_type(s);
+        return 0;
+    }
+
     if (!s->resume &&
         (s->addonly || s->drop_table || s->fastinit || s->alteronly)) {
         struct schema_change_type *last_sc = NULL;

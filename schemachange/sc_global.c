@@ -91,7 +91,7 @@ int gbl_sc_thd_failed = 0;
  * schema change is in progress then they have to do extra stuff. */
 pthread_rwlock_t sc_live_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-int schema_change = SC_NO_CHANGE; /*static int schema_change_doomed = 0;*/
+int schema_change = SC_NO_CHANGE;
 
 int stopsc = 0; /* stop schemachange, so it can resume */
 

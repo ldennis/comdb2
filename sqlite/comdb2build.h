@@ -87,6 +87,8 @@ void comdb2RebuildData(Parse*, Token*, Token*,int opt);
 void comdb2RebuildDataBlob(Parse*,Token*, Token*,int opt);
 void comdb2Truncate(Parse*, Token*, Token*);
 
+void comdb2SchemachangeControl(Parse*, int, Token*, Token *);
+
 void comdb2bulkimport(Parse*, Token*, Token*, Token*, Token*);
 
 void comdb2CreateProcedure(Parse*, Token*, Token*, Token*);
