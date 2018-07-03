@@ -95,7 +95,7 @@ while [[ $selecterror -lt $maxselectfail ]]; do
 
 
     let prevnum=num
-    if [[ $noprogress == 6 ]]; then
+    if [[ $noprogress == 9 ]]; then
         errquit "NOT MAKING PROGRESS FOR A LONG TIME"
     fi
 
