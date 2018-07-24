@@ -406,6 +406,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    abort();
 
     /* Make sure dbname is set. */
     if (NULL == c->dbname) {
