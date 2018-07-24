@@ -106,6 +106,8 @@ void *schedule_thd(void *arg)
         failexit(__func__, __LINE__, 1);
     }
 
+    printf("%s:%d schedule thread %lx started\n", __func__, __LINE__, pthread_self());
+
     cdb2_set_debug_trace(sqlh);
 
     if (c->recom) {
@@ -222,6 +224,7 @@ void *schedule_thd(void *arg)
                 }
             }
         } else {
+            printf("%s:%d no record found in selectv\n", __func__, __LINE__);
             cdb2_run_statement(sqlh, "rollback");
             do {
                 ret = cdb2_next_record(sqlh);
@@ -324,6 +327,7 @@ retry_add:
         } while (ret == CDB2_OK);
     }
 
+    printf("%s:%d schedule thread %lx done\n", __func__, __LINE__, pthread_self());
     cdb2_close(sqlh);
     free(arg);
     fclose(f);
@@ -351,9 +355,13 @@ int schedule(config_t *c)
         }
     }
 
+    printf("%s:%d join all schedule threads\n", __func__, __LINE__);
+
     for (i = 0; i < c->threads; i++) {
         pthread_join(thds[i], NULL);
     }
+
+    printf("%s:%d all schedule threads done\n", __func__, __LINE__);
 
     pthread_attr_destroy(&attr);
     return 0;
@@ -406,8 +414,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    abort();
-
     /* Make sure dbname is set. */
     if (NULL == c->dbname) {
         fprintf(stderr, "dbname is unset.\n");
@@ -443,6 +449,8 @@ int main(int argc, char *argv[])
         failexit(__func__, __LINE__, 1);
     }
 
+    printf("%s:%d starting test\n", __func__, __LINE__);
     schedule(c);
+    printf("%s:%d schedule done exiting\n", __func__, __LINE__);
     return 0;
 }
