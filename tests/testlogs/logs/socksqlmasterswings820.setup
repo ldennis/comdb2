@@ -1,0 +1,303 @@
+07:34:54> + debug=0
+07:34:54> + [[ 0 == 1 ]]
+07:34:54> + [[ 0 -gt 0 ]]
+07:34:54> + vars='HOSTNAME TESTID SRCHOME TESTCASE DBNAME DBDIR BUILDDIR TESTSBUILDDIR TESTSROOTDIR TESTDIR TMPDIR CDB2_OPTIONS CDB2_CONFIG COMDB2_EXE CDB2SQL_EXE COMDB2AR_EXE PMUX_EXE pmux_port'
+07:34:54> + for required in '$vars'
+07:34:54> + q=c1
+07:34:54> + [[ -z c1 ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=820
+07:34:54> + [[ -z 820 ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2
+07:34:54> + [[ -z /github/comdb2 ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=socksql_master_swings
+07:34:54> + [[ -z socksql_master_swings ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=socksqlmasterswings820
+07:34:54> + [[ -z socksqlmasterswings820 ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/tests/test_820/socksqlmasterswings820
+07:34:54> + [[ -z /github/comdb2/tests/test_820/socksqlmasterswings820 ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/build
+07:34:54> + [[ -z /github/comdb2/build ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/build/tests/tools/
+07:34:54> + [[ -z /github/comdb2/build/tests/tools/ ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/tests
+07:34:54> + [[ -z /github/comdb2/tests ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/tests/test_820
+07:34:54> + [[ -z /github/comdb2/tests/test_820 ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/tests/test_820/tmp
+07:34:54> + [[ -z /github/comdb2/tests/test_820/tmp ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q='--cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg'
+07:34:54> + [[ -z --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg
+07:34:54> + [[ -z /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/build/db/comdb2
+07:34:54> + [[ -z /github/comdb2/build/db/comdb2 ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/build/tools/cdb2sql/cdb2sql
+07:34:54> + [[ -z /github/comdb2/build/tools/cdb2sql/cdb2sql ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/build/tools/comdb2ar/comdb2ar
+07:34:54> + [[ -z /github/comdb2/build/tools/comdb2ar/comdb2ar ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=/github/comdb2/build/tools/pmux/pmux
+07:34:54> + [[ -z /github/comdb2/build/tools/pmux/pmux ]]
+07:34:54> + for required in '$vars'
+07:34:54> + q=5105
+07:34:54> + [[ -z 5105 ]]
+07:34:54> + source /github/comdb2/tests/setup.common
+07:34:54> +++ dirname /github/comdb2/build/tools/comdb2ar/comdb2ar
+07:34:54> ++ d1=/github/comdb2/build/tools/comdb2ar
+07:34:54> +++ dirname /github/comdb2/build/db/comdb2
+07:34:54> ++ d2=/github/comdb2/build/db
+07:34:54> +++ dirname /github/comdb2/build/tools/cdb2sql/cdb2sql
+07:34:54> ++ d3=/github/comdb2/build/tools/cdb2sql
+07:34:54> +++ dirname /github/comdb2/build/tools/pmux/pmux
+07:34:54> ++ PMUX_DIR=/github/comdb2/build/tools/pmux
+07:34:54> ++ paths=/github/comdb2/build/tools/comdb2ar:/github/comdb2/build/db:/github/comdb2/build/tools/cdb2sql:/github/comdb2/build/tools/pmux
+07:34:54> ++ realpath /github/comdb2/tests/test_820/socksqlmasterswings820
+07:34:54> + DBDIR=/github/comdb2/tests/test_820/socksqlmasterswings820
+07:34:54> + DEBUG_PREFIX=
+07:34:54> + [[ -n '' ]]
+07:34:54> + [[ 0 -eq 1 ]]
+07:34:54> + mkdir -p /github/comdb2/tests/test_820/socksqlmasterswings820 /github/comdb2/tests/test_820/tmp
+07:34:54> + echo '!socksql_master_swings: creating'
+07:34:54> !socksql_master_swings: creating
+07:34:54> + LRL=/github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl
+07:34:54> + [[ -z '' ]]
+07:34:54> + cat
+07:34:54> + echo 'logmsg level info'
+07:34:54> + [[ -f /github/comdb2/tests/socksql_master_swings.test/lrl ]]
+07:34:54> + [[ -f /github/comdb2/tests/socksql_master_swings.test/lrl.options ]]
+07:34:54> + cat /github/comdb2/tests/socksql_master_swings.test/lrl.options
+07:34:54> + cat
+07:34:54> + [[ -n '' ]]
+07:34:54> + df /github/comdb2/tests/test_820/socksqlmasterswings820
+07:34:54> + awk '{print $1 }'
+07:34:54> + grep 'tmpfs\|nfs'
+07:34:54> + echo 'make_slow_replicants_incoherent off'
+07:34:54> + [[ -n m1 m2 m3 ]]
+07:34:54> + echo socksqlmasterswings820 0 m1 m2 m3
+07:34:54> + echo comdb2_config:default_type=testsuite
+07:34:54> + echo 'cluster nodes m1 m2 m3'
+07:34:54> + [[ -n '' ]]
+07:34:54> + echo comdb2_config:ssl_cert_path=/github/comdb2/tests/test_820
+07:34:54> + echo comdb2_config:allow_pmux_route:true
+07:34:54> + set +e
+07:34:54> + '[' -n '' ']'
+07:34:54> + SSH_OPT='-o StrictHostKeyChecking=no '
+07:34:54> ++ ls t.csc2
+07:34:54> + for csc2 in '$(ls *.csc2 2>/dev/null)'
+07:34:54> + table=t
+07:34:54> + cp /github/comdb2/tests/test_820/socksql_master_swings.test/t.csc2 /github/comdb2/tests/test_820/socksqlmasterswings820/
+07:34:54> + mkdir -p /github/comdb2/tests/test_820/var/log/cdb2 /github/comdb2/tests/test_820/tmp/cdb2
+07:34:54> + cd /github/comdb2/tests/test_820/socksqlmasterswings820
+07:34:54> + PARAMS='socksqlmasterswings820 --no-global-lrl'
+07:34:54> + set +e
+07:34:54> + /github/comdb2/build/db/comdb2 --create --lrl /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl --pidfile /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.pid socksqlmasterswings820 --no-global-lrl
+07:34:55> + rc=0
+07:34:55> + rm -f socksqlmasterswings820.trap
+07:34:55> + [[ 0 -ne 0 ]]
+07:34:55> + echo 'socksqlmasterswings820 created successfully'
+07:34:55> socksqlmasterswings820 created successfully
+07:34:55> + set -e
+07:34:55> + [[ -z m1 m2 m3 ]]
+07:34:55> + echo '!socksql_master_swings: copying to cluster'
+07:34:55> !socksql_master_swings: copying to cluster
+07:34:55> + [[ -n '' ]]
+07:34:55> + COMDB2AR_AROPTS='-C preserve'
+07:34:55> + COMDB2AR_EXOPTS='-x /github/comdb2/build/db/comdb2'
+07:34:55> + ARFILE=/github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.ar
+07:34:55> + /github/comdb2/build/tools/comdb2ar/comdb2ar -C preserve c /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl
+07:34:55> + '[' '!' -f /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.ar ']'
+07:34:55> + i=0
+07:34:55> + declare -a pids
+07:34:55> + for node in '${CLUSTER/$HOSTNAME/}'
+07:34:55> + cat /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.ar
+07:34:55> + pids[$i]=11325
+07:34:55> + let i=i+1
+07:34:55> + for node in '${CLUSTER/$HOSTNAME/}'
+07:34:55> + ssh -o StrictHostKeyChecking=no m1 'cd /github/comdb2/tests/test_820/socksqlmasterswings820; /github/comdb2/build/tools/comdb2ar/comdb2ar -x /github/comdb2/build/db/comdb2 -C preserve -u 95 x /github/comdb2/tests/test_820/socksqlmasterswings820'
+07:34:55> + cat /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.ar
+07:34:55> + pids[$i]=11327
+07:34:55> + let i=i+1
+07:34:55> + for node in '${CLUSTER/$HOSTNAME/}'
+07:34:55> + ssh -o StrictHostKeyChecking=no m2 'cd /github/comdb2/tests/test_820/socksqlmasterswings820; /github/comdb2/build/tools/comdb2ar/comdb2ar -x /github/comdb2/build/db/comdb2 -C preserve -u 95 x /github/comdb2/tests/test_820/socksqlmasterswings820'
+07:34:55> + pids[$i]=11329
+07:34:55> + let i=i+1
+07:34:55> + i=0
+07:34:55> + for node in '${CLUSTER/$HOSTNAME/}'
+07:34:55> + wait 11325
+07:34:55> + ssh -o StrictHostKeyChecking=no m3 'cd /github/comdb2/tests/test_820/socksqlmasterswings820; /github/comdb2/build/tools/comdb2ar/comdb2ar -x /github/comdb2/build/db/comdb2 -C preserve -u 95 x /github/comdb2/tests/test_820/socksqlmasterswings820'
+07:34:55> + cat /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.ar
+07:35:01> + [[ 0 -ne 0 ]]
+07:35:01> + let i=i+1
+07:35:01> + for node in '${CLUSTER/$HOSTNAME/}'
+07:35:01> + wait 11327
+07:35:01> + [[ 0 -ne 0 ]]
+07:35:01> + let i=i+1
+07:35:01> + for node in '${CLUSTER/$HOSTNAME/}'
+07:35:01> + wait 11329
+07:35:01> + [[ 0 -ne 0 ]]
+07:35:01> + let i=i+1
+07:35:01> + echo 'export COMDB2_ROOT=/github/comdb2/tests/test_820'
+07:35:01> + CMD='cd /github/comdb2/tests/test_820/socksqlmasterswings820; source /github/comdb2/tests/test_820/replicant_vars ;  /github/comdb2/build/db/comdb2 socksqlmasterswings820 --no-global-lrl --lrl /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl --pidfile /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.pid 2>&1 | tee /github/comdb2/tests/test_820/socksqlmasterswings820.db'
+07:35:01> + echo '!socksql_master_swings: starting'
+07:35:01> !socksql_master_swings: starting
+07:35:01> + for node in '$CLUSTER'
+07:35:01> + '[' m1 == c1 ']'
+07:35:01> + [[ -n '' ]]
+07:35:01> + scp -o StrictHostKeyChecking=no /github/comdb2/tests/test_820/replicant_vars m1:/github/comdb2/tests/test_820/replicant_vars
+07:35:01> + echo 11332
+07:35:01> + ssh -n -o StrictHostKeyChecking=no -tt m1 cd '/github/comdb2/tests/test_820/socksqlmasterswings820;' source /github/comdb2/tests/test_820/replicant_vars ';' /github/comdb2/build/db/comdb2 socksqlmasterswings820 --no-global-lrl --lrl /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl --pidfile /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.pid '2>&1' '|' tee /github/comdb2/tests/test_820/socksqlmasterswings820.db
+07:35:01> + for node in '$CLUSTER'
+07:35:01> + '[' m2 == c1 ']'
+07:35:01> + [[ -n '' ]]
+07:35:01> + scp -o StrictHostKeyChecking=no /github/comdb2/tests/test_820/replicant_vars m2:/github/comdb2/tests/test_820/replicant_vars
+07:35:01> + echo 11335
+07:35:01> + ssh -n -o StrictHostKeyChecking=no -tt m2 cd '/github/comdb2/tests/test_820/socksqlmasterswings820;' source /github/comdb2/tests/test_820/replicant_vars ';' /github/comdb2/build/db/comdb2 socksqlmasterswings820 --no-global-lrl --lrl /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl --pidfile /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.pid '2>&1' '|' tee /github/comdb2/tests/test_820/socksqlmasterswings820.db
+07:35:01> + for node in '$CLUSTER'
+07:35:01> + '[' m3 == c1 ']'
+07:35:01> + [[ -n '' ]]
+07:35:01> + scp -o StrictHostKeyChecking=no /github/comdb2/tests/test_820/replicant_vars m3:/github/comdb2/tests/test_820/replicant_vars
+07:35:01> + echo 11338
+07:35:01> + ssh -n -o StrictHostKeyChecking=no -tt m3 cd '/github/comdb2/tests/test_820/socksqlmasterswings820;' source /github/comdb2/tests/test_820/replicant_vars ';' /github/comdb2/build/db/comdb2 socksqlmasterswings820 --no-global-lrl --lrl /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl --pidfile /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.pid '2>&1' '|' tee /github/comdb2/tests/test_820/socksqlmasterswings820.db
+07:35:01> + set +e
+07:35:01> + sleep 1
+07:35:02> + for node in '$CLUSTER'
+07:35:02> ++ cat /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m1.pid
+07:35:02> + kill -0 11332
+07:35:02> + '[' 0 -eq 1 ']'
+07:35:02> + for node in '$CLUSTER'
+07:35:02> ++ cat /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m2.pid
+07:35:02> + kill -0 11335
+07:35:02> + '[' 0 -eq 1 ']'
+07:35:02> + for node in '$CLUSTER'
+07:35:02> ++ cat /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m3.pid
+07:35:02> + kill -0 11338
+07:35:02> + '[' 0 -eq 1 ']'
+07:35:02> + echo '!socksql_master_swings: waiting until ready'
+07:35:02> !socksql_master_swings: waiting until ready
+07:35:02> + for node in '$CLUSTER'
+07:35:02> + echo 'If we can'\''t talk to any of the nodes the test will timeout'
+07:35:02> If we can't talk to any of the nodes the test will timeout
+07:35:02> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:03> + out='[select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db'
+07:35:03> + [[ [select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db != \1 ]]
+07:35:03> + sleep 2
+07:35:05> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:05> + out='[select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db'
+07:35:05> + /github/comdb2/build/tools/cdb2sql/cdb2sql -v --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:05> + [[ [select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db != \1 ]]
+07:35:05> + sleep 2
+07:35:07> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:07> + out='[select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db'
+07:35:07> + /github/comdb2/build/tools/cdb2sql/cdb2sql -v --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:08> + [[ [select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db != \1 ]]
+07:35:08> + sleep 2
+07:35:10> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:10> + out='[select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db'
+07:35:10> + /github/comdb2/build/tools/cdb2sql/cdb2sql -v --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:10> + [[ [select 1] failed with rc -1 cdb2_run_statement_typed_int: Cannot connect to db != \1 ]]
+07:35:10> + sleep 2
+07:35:12> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:12> + out=1
+07:35:12> + /github/comdb2/build/tools/cdb2sql/cdb2sql -v --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select 1'
+07:35:12> + [[ 1 != \1 ]]
+07:35:12> + /github/comdb2/build/tools/cdb2sql/cdb2sql -v --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select comdb2_host()'
+07:35:12> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m1 socksqlmasterswings820 'select comdb2_host()'
+07:35:12> + out=m1
+07:35:12> + '[' m1 '!=' m1 ']'
+07:35:12> + for node in '$CLUSTER'
+07:35:12> + echo 'If we can'\''t talk to any of the nodes the test will timeout'
+07:35:12> If we can't talk to any of the nodes the test will timeout
+07:35:12> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m2 socksqlmasterswings820 'select 1'
+07:35:13> + out=1
+07:35:13> + [[ 1 != \1 ]]
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql -v --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m2 socksqlmasterswings820 'select comdb2_host()'
+07:35:13> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m2 socksqlmasterswings820 'select comdb2_host()'
+07:35:13> + out=m2
+07:35:13> + '[' m2 '!=' m2 ']'
+07:35:13> + for node in '$CLUSTER'
+07:35:13> + echo 'If we can'\''t talk to any of the nodes the test will timeout'
+07:35:13> If we can't talk to any of the nodes the test will timeout
+07:35:13> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m3 socksqlmasterswings820 'select 1'
+07:35:13> + out=1
+07:35:13> + [[ 1 != \1 ]]
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql -v --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m3 socksqlmasterswings820 'select comdb2_host()'
+07:35:13> ++ /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs --host m3 socksqlmasterswings820 'select comdb2_host()'
+07:35:13> + out=m3
+07:35:13> + '[' m3 '!=' m3 ']'
+07:35:13> + for node in '$CLUSTER'
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs socksqlmasterswings820 --host m1 'exec procedure sys.cmd.send("udp stat all")'
+07:35:13> UDP enabled: yes
+07:35:13> Early ACK enabled: yes
+07:35:13> udp packets sent: 31
+07:35:13> udp packets failed to send: 4
+07:35:13> udp packets received: 7
+07:35:13> udp packets received with len mismatch: 0
+07:35:13> udp packets received with destination mismatch: 0
+07:35:13> Replication:
+07:35:13> node:m3 port:19000 sent:     31 [docker_m3_1.docker_default 172.18.0.5:19000] 
+07:35:13> node:m2 port:19000 sent:      0 [docker_m2_1.docker_default 172.18.0.3:19000] 
+07:35:13> node:m1 port:19000 sent:      0 [0.0.0.0 0.0.0.0:19000 ]
+07:35:13> netinfo udp cache hits: 30 misses: 5 lastnode: m3
+07:35:13> Offloadsql:
+07:35:13> node:m2 port:19000 sent:      0 [docker_m2_1.docker_default 172.18.0.3:19000] 
+07:35:13> node:m3 port:19000 sent:      0 [docker_m3_1.docker_default 172.18.0.5:19000] 
+07:35:13> node:m1 port:    0 sent:      0 [0.0.0.0 0.0.0.0:0 ]
+07:35:13> netinfo udp cache hits: 0 misses: 0 lastnode: (null)
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs socksqlmasterswings820 --host m1 'exec procedure sys.cmd.send("udp ping all")'
+07:35:13> + for node in '$CLUSTER'
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs socksqlmasterswings820 --host m2 'exec procedure sys.cmd.send("udp stat all")'
+07:35:13> UDP enabled: yes
+07:35:13> Early ACK enabled: yes
+07:35:13> udp packets sent: 33
+07:35:13> udp packets failed to send: 3
+07:35:13> udp packets received: 8
+07:35:13> udp packets received with len mismatch: 0
+07:35:13> udp packets received with destination mismatch: 0
+07:35:13> Replication:
+07:35:13> node:m3 port:19000 sent:     32 [docker_m3_1.docker_default 172.18.0.5:19000] 
+07:35:13> node:m1 port:19000 sent:      1 [docker_m1_1.docker_default 172.18.0.4:19000] 
+07:35:13> node:m2 port:19000 sent:      0 [0.0.0.0 0.0.0.0:19000 ]
+07:35:13> netinfo udp cache hits: 31 misses: 5 lastnode: m1
+07:35:13> Offloadsql:
+07:35:13> node:m1 port:19000 sent:      0 [docker_m1_1.docker_default 172.18.0.4:19000] 
+07:35:13> node:m3 port:19000 sent:      0 [docker_m3_1.docker_default 172.18.0.5:19000] 
+07:35:13> node:m2 port:    0 sent:      0 [0.0.0.0 0.0.0.0:0 ]
+07:35:13> netinfo udp cache hits: 0 misses: 0 lastnode: (null)
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs socksqlmasterswings820 --host m2 'exec procedure sys.cmd.send("udp ping all")'
+07:35:13> + for node in '$CLUSTER'
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs socksqlmasterswings820 --host m3 'exec procedure sys.cmd.send("udp stat all")'
+07:35:13> UDP enabled: yes
+07:35:13> Early ACK enabled: yes
+07:35:13> udp packets sent: 16
+07:35:13> udp packets failed to send: 2
+07:35:13> udp packets received: 66
+07:35:13> udp packets received with len mismatch: 0
+07:35:13> udp packets received with destination mismatch: 0
+07:35:13> Replication:
+07:35:13> node:m2 port:19000 sent:      8 [docker_m2_1.docker_default 172.18.0.3:19000] 
+07:35:13> node:m1 port:19000 sent:      8 [docker_m1_1.docker_default 172.18.0.4:19000] 
+07:35:13> node:m3 port:19000 sent:      0 [0.0.0.0 0.0.0.0:19000 ]
+07:35:13> netinfo udp cache hits: 1 misses: 17 lastnode: m2
+07:35:13> Offloadsql:
+07:35:13> node:m2 port:19000 sent:      0 [docker_m2_1.docker_default 172.18.0.3:19000] 
+07:35:13> node:m1 port:19000 sent:      0 [docker_m1_1.docker_default 172.18.0.4:19000] 
+07:35:13> node:m3 port:    0 sent:      0 [0.0.0.0 0.0.0.0:0 ]
+07:35:13> netinfo udp cache hits: 0 misses: 0 lastnode: (null)
+07:35:13> + /github/comdb2/build/tools/cdb2sql/cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg --tabs socksqlmasterswings820 --host m3 'exec procedure sys.cmd.send("udp ping all")'
+07:35:13> + echo 'setup successful'
+07:35:13> setup successful

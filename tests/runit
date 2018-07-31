@@ -1,0 +1,13 @@
+#!/bin/bash
+
+test=$1
+while true; do
+    make clean
+    make TESTID=820 $test CLUSTER="m1 m2 m3"
+    #make TESTID=820 -j4 schemalk selectv_recom_range ddl_no_csc2 CLUSTER="m1 m2 m3"
+    if [ $? -ne 0 ]; then
+        echo "TEST FAILED"
+        break;
+    fi
+    exit 0
+done

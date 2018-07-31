@@ -1,0 +1,96 @@
+Inferred table schedule from schedule_0000000000070000.datas0
+Inferred table sqlite_stat4 from sqlite_stat4_0000000000100000.datas0
+Inferred table sqlite_stat1 from sqlite_stat1_00000000000c0000.datas0
+Inferred table jobs from jobs_0000000000020000.datas0
+Log holder appsock failed: cdb2portmux_route to socksqlmasterswings820 failed
+Log deletion held for socksqlmasterswings820
+Log deletion version3
+Lowest log file is 1
+File schedule_0000000000090000.index Type Berkdb_file PageSize 4096 Checksums
+File jobs_0000000000030000.index Type Berkdb_file PageSize 4096 Checksums
+File jobs_0000000000020000.datas3 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat4_0000000000100000.datas4 Type Berkdb_file PageSize 8192 Checksums
+File jobs_0000000000020000.datas5 Type Berkdb_file PageSize 4096 Checksums
+File jobs_0000000000020000.datas2 Type Berkdb_file PageSize 4096 Checksums
+File schedule_0000000000070000.datas0 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat4_0000000000100000.datas5 Type Berkdb_file PageSize 8192 Checksums
+File jobs_0000000000020000.datas7 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat4_0000000000100000.datas7 Type Berkdb_file PageSize 8192 Checksums
+File sqlite_stat4_0000000000100000.datas3 Type Berkdb_file PageSize 8192 Checksums
+File jobs_0000000000020000.datas1 Type Berkdb_file PageSize 4096 Checksums
+File jobs_0000000000040000.index Type Berkdb_file PageSize 4096 Checksums
+File comdb2_metadata.dta Type Berkdb_file PageSize 4096 Checksums
+File schedule_0000000000080000.index Type Berkdb_file PageSize 4096 Checksums
+File schedule_0000000000070000.datas3 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat1_00000000000c0000.datas6 Type Berkdb_file PageSize 32768 Checksums
+File sqlite_stat4_0000000000100000.datas0 Type Berkdb_file PageSize 8192 Checksums
+File sqlite_stat1_00000000000c0000.datas0 Type Berkdb_file PageSize 32768 Checksums
+File sqlite_stat1_00000000000c0000.datas7 Type Berkdb_file PageSize 32768 Checksums
+File schedule_0000000000070000.datas1 Type Berkdb_file PageSize 4096 Checksums
+File schedule_0000000000070000.datas5 Type Berkdb_file PageSize 4096 Checksums
+File jobs_0000000000020000.datas0 Type Berkdb_file PageSize 4096 Checksums
+File schedule_0000000000070000.datas7 Type Berkdb_file PageSize 4096 Checksums
+File schedule_0000000000070000.datas2 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat4_0000000000100000.datas6 Type Berkdb_file PageSize 8192 Checksums
+File schedule_0000000000070000.datas4 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat1_00000000000d0000.index Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat1_00000000000c0000.datas5 Type Berkdb_file PageSize 32768 Checksums
+File sqlite_stat4_0000000000100000.datas1 Type Berkdb_file PageSize 8192 Checksums
+File sqlite_stat1_00000000000c0000.datas1 Type Berkdb_file PageSize 32768 Checksums
+File sqlite_stat1_00000000000c0000.datas4 Type Berkdb_file PageSize 32768 Checksums
+File jobs_0000000000020000.datas6 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat4_0000000000110000.index Type Berkdb_file PageSize 4096 Checksums
+File jobs_0000000000020000.datas4 Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat4_0000000000100000.datas2 Type Berkdb_file PageSize 8192 Checksums
+File sqlite_stat1_00000000000c0000.datas2 Type Berkdb_file PageSize 32768 Checksums
+File comdb2_llmeta.dta Type Berkdb_file PageSize 4096 Checksums
+File sqlite_stat1_00000000000c0000.datas3 Type Berkdb_file PageSize 32768 Checksums
+File schedule_0000000000070000.datas6 Type Berkdb_file PageSize 4096 Checksums
+logdelete version 3
+a MANIFEST size=3221
+a socksqlmasterswings820.lrl size=567 pagesize=4096
+a file_vers_map size=492 pagesize=4096
+Serializing checkpoint
+a logs/checkpoint size=512 pagesize=4096
+a schedule_0000000000090000.index size=8192 pagesize=4096
+a jobs_0000000000030000.index size=8192 pagesize=4096
+a jobs_0000000000020000.datas3 size=8192 pagesize=4096
+a sqlite_stat4_0000000000100000.datas4 size=16384 pagesize=8192
+a jobs_0000000000020000.datas5 size=8192 pagesize=4096
+a jobs_0000000000020000.datas2 size=8192 pagesize=4096
+a schedule_0000000000070000.datas0 size=8192 pagesize=4096
+a sqlite_stat4_0000000000100000.datas5 size=16384 pagesize=8192
+a jobs_0000000000020000.datas7 size=8192 pagesize=4096
+a sqlite_stat4_0000000000100000.datas7 size=16384 pagesize=8192
+a sqlite_stat4_0000000000100000.datas3 size=16384 pagesize=8192
+a jobs_0000000000020000.datas1 size=8192 pagesize=4096
+a jobs_0000000000040000.index size=8192 pagesize=4096
+a comdb2_metadata.dta size=8192 pagesize=4096
+a schedule_0000000000080000.index size=8192 pagesize=4096
+a schedule_0000000000070000.datas3 size=8192 pagesize=4096
+a sqlite_stat1_00000000000c0000.datas6 size=65536 pagesize=32768
+a sqlite_stat4_0000000000100000.datas0 size=16384 pagesize=8192
+a sqlite_stat1_00000000000c0000.datas0 size=65536 pagesize=32768
+a sqlite_stat1_00000000000c0000.datas7 size=65536 pagesize=32768
+a schedule_0000000000070000.datas1 size=8192 pagesize=4096
+a schedule_0000000000070000.datas5 size=8192 pagesize=4096
+a jobs_0000000000020000.datas0 size=8192 pagesize=4096
+a schedule_0000000000070000.datas7 size=8192 pagesize=4096
+a schedule_0000000000070000.datas2 size=8192 pagesize=4096
+a sqlite_stat4_0000000000100000.datas6 size=16384 pagesize=8192
+a schedule_0000000000070000.datas4 size=8192 pagesize=4096
+a sqlite_stat1_00000000000d0000.index size=8192 pagesize=4096
+a sqlite_stat1_00000000000c0000.datas5 size=65536 pagesize=32768
+a sqlite_stat4_0000000000100000.datas1 size=16384 pagesize=8192
+a sqlite_stat1_00000000000c0000.datas1 size=65536 pagesize=32768
+a sqlite_stat1_00000000000c0000.datas4 size=65536 pagesize=32768
+a jobs_0000000000020000.datas6 size=8192 pagesize=4096
+a sqlite_stat4_0000000000110000.index size=8192 pagesize=4096
+a jobs_0000000000020000.datas4 size=8192 pagesize=4096
+a sqlite_stat4_0000000000100000.datas2 size=16384 pagesize=8192
+a sqlite_stat1_00000000000c0000.datas2 size=65536 pagesize=32768
+a comdb2_llmeta.dta size=8192 pagesize=4096
+a sqlite_stat1_00000000000c0000.datas3 size=65536 pagesize=32768
+a schedule_0000000000070000.datas6 size=8192 pagesize=4096
+Serializing log.0000000001
+a logs/log.0000000001 size=895086 pagesize=4096

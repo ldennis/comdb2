@@ -5075,6 +5075,8 @@ int osql_comm_signal_sqlthr_rc(sorese_info_t *sorese, struct errstat *xerr,
     if (xerr->errval == SQLITE_ABORT)
         return 0;
 
+    uuidstr_t us;
+    logmsg(LOGMSG_INFO, "%s:%d uuid[%s] rc %d to host %s\n", __func__, __LINE__, comdb2uuidstr(sorese->uuid, us), rc, sorese->host?sorese->host:"localhost");
     /* if error, lets send the error string */
     if (sorese->host) {
         /* remote */

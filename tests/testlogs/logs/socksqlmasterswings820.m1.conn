@@ -1,0 +1,90 @@
+0x7fb7aa97d780> cdb2_set_comdb2db_config("/github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg")
+processing line sql 'select 1...'
+calling cdb2_open
+td 2862077824 cdb2_open 5583 debug trace enabled
+td 2862077824 cdb2_open:5616 host m1 port 5105
+0x7fb7aa97d780> cdb2_open(dbname: "socksqlmasterswings820", type: "m1", flags: 14) = 0 => 0x15f9700
+cdb2_run_statement_typed_int running 'select 1' from line 4378
+td 2862077824 cdb2_next_record_int:2617 cnonce '' [0][0] returning 1
+td 2862077824 cdb2_run_statement_typed_int:3713 retry_queries: hndl->host=-1 ()
+td 2862077824 cdb2_connect_sqlhost:2090 node_seq=0 flags=0x14, num_hosts=1, num_hosts_sameroom=0
+td 2862077824 newsql_connect:1845 entering, host 'm1:5105'
+cdb2_socket_pool_get(comdb2/socksqlmasterswings820/m1/newsql/random_room,1): fd=-1
+td -1432889472 cdb2portmux_route name comdb2/replication/socksqlmasterswings820
+rte 'comdb2/replication/socksqlmasterswings820' returns res='0
+'
+td 2862077824 retry_query_list():3063, retry_all 1, intran 0
+td 0x7fb7aa97d780 cdb2_send_query line 2399
+td 2862077824 cdb2_send_query:2468 sending to m1 'select 1' from-line 3817 retries is 0 do_append is 1
+td 0x7fb7aa97d780 cdb2_read_record line 2180
+td 0x7fb7aa97d780 line 3904 reading from m1 rc=0 type:1010
+td 2862077824 cdb2_run_statement_typed_int:3915 goto retry_queries
+td 2862077824 cdb2_run_statement_typed_int:3713 retry_queries: hndl->host=0 (m1)
+td 0x7fb7aa97d780 cdb2_send_query line 2399
+td 2862077824 cdb2_send_query:2468 sending to m1 'select 1' from-line 3817 retries is 0 do_append is 0
+td 0x7fb7aa97d780 cdb2_read_record line 2180
+td 2862077824 cdb2_read_record:2239 returning type=1002
+td 0x7fb7aa97d780 line 3904 reading from m1 rc=0 type:1002
+td 0x7fb7aa97d780 cdb2_read_record line 2180
+td 0x7fb7aa97d780 cdb2_next_record_int line 2714 error_string=(null)
+td 2862077824 cdb2_next_record_int:2718 cnonce '313262592-11360-898899-746892318' [0][0] returning 0
+td 2862077824 cdb2_run_statement_typed_int:4275 cnonce '313262592-11360-898899-746892318' [0][0] returning 0
+0x7fb7aa97d780> cdb2_run_statement(0x15f9700, "select 1") = 0
+run_statement_typed rc=0, retries=0, sql='select 1...'
+0x7fb7aa97d780> cdb2_clearbindings(0x15f9700)
+0x7fb7aa97d780> cdb2_numcolumns(0x15f9700) = 1
+0x7fb7aa97d780> cdb2_next_record(0x15f9700) = 0
+0x7fb7aa97d780> cdb2_column_type(0x15f9700, 0) = CDB2_INTEGER
+1
+td 0x7fb7aa97d780 cdb2_read_record line 2180
+td 2862077824 cdb2_next_record_int:2741 cnonce '313262592-11360-898899-746892318' [0][0] returning 1
+0x7fb7aa97d780> cdb2_next_record(0x15f9700) = 1
+0x7fb7aa97d780> cdb2_close(0x15f9700)
+td 0x7fb7aa97d780 newsql_disconnect from line 2863 disconnecting from m1
+0x7fb7aa97d780> cdb2_clearbindings(0x15f9700)
+process_line error=0
+0x7fde6c6ab780> cdb2_set_comdb2db_config("/github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg")
+processing line sql 'select comdb2_host()...'
+calling cdb2_open
+td 1818933120 cdb2_open 5583 debug trace enabled
+td 1818933120 cdb2_open:5616 host m1 port 5105
+0x7fde6c6ab780> cdb2_open(dbname: "socksqlmasterswings820", type: "m1", flags: 14) = 0 => 0x12cb700
+cdb2_run_statement_typed_int running 'select comdb2_host()' from line 4378
+td 1818933120 cdb2_next_record_int:2617 cnonce '' [0][0] returning 1
+td 1818933120 cdb2_run_statement_typed_int:3713 retry_queries: hndl->host=-1 ()
+td 1818933120 cdb2_connect_sqlhost:2090 node_seq=0 flags=0x14, num_hosts=1, num_hosts_sameroom=0
+td 1818933120 newsql_connect:1845 entering, host 'm1:5105'
+cdb2_socket_pool_get(comdb2/socksqlmasterswings820/m1/newsql/random_room,1): fd=-1
+td 1818933120 cdb2portmux_route name comdb2/replication/socksqlmasterswings820
+rte 'comdb2/replication/socksqlmasterswings820' returns res='0
+'
+td 1818933120 retry_query_list():3063, retry_all 1, intran 0
+td 0x7fde6c6ab780 cdb2_send_query line 2399
+td 1818933120 cdb2_send_query:2468 sending to m1 'select comdb2_host()' from-line 3817 retries is 0 do_append is 1
+td 0x7fde6c6ab780 cdb2_read_record line 2180
+td 0x7fde6c6ab780 line 3904 reading from m1 rc=0 type:1010
+td 1818933120 cdb2_run_statement_typed_int:3915 goto retry_queries
+td 1818933120 cdb2_run_statement_typed_int:3713 retry_queries: hndl->host=0 (m1)
+td 0x7fde6c6ab780 cdb2_send_query line 2399
+td 1818933120 cdb2_send_query:2468 sending to m1 'select comdb2_host()' from-line 3817 retries is 0 do_append is 0
+td 0x7fde6c6ab780 cdb2_read_record line 2180
+td 1818933120 cdb2_read_record:2239 returning type=1002
+td 0x7fde6c6ab780 line 3904 reading from m1 rc=0 type:1002
+td 0x7fde6c6ab780 cdb2_read_record line 2180
+td 0x7fde6c6ab780 cdb2_next_record_int line 2714 error_string=(null)
+td 1818933120 cdb2_next_record_int:2718 cnonce '313262592-11361-926838-428868778' [0][0] returning 0
+td 1818933120 cdb2_run_statement_typed_int:4275 cnonce '313262592-11361-926838-428868778' [0][0] returning 0
+0x7fde6c6ab780> cdb2_run_statement(0x12cb700, "select comdb2_host()") = 0
+run_statement_typed rc=0, retries=0, sql='select comdb2_host()...'
+0x7fde6c6ab780> cdb2_clearbindings(0x12cb700)
+0x7fde6c6ab780> cdb2_numcolumns(0x12cb700) = 1
+0x7fde6c6ab780> cdb2_next_record(0x12cb700) = 0
+0x7fde6c6ab780> cdb2_column_type(0x12cb700, 0) = CDB2_CSTRING
+m1
+td 0x7fde6c6ab780 cdb2_read_record line 2180
+td 1818933120 cdb2_next_record_int:2741 cnonce '313262592-11361-926838-428868778' [0][0] returning 1
+0x7fde6c6ab780> cdb2_next_record(0x12cb700) = 1
+0x7fde6c6ab780> cdb2_close(0x12cb700)
+td 0x7fde6c6ab780 newsql_disconnect from line 2863 disconnecting from m1
+0x7fde6c6ab780> cdb2_clearbindings(0x12cb700)
+process_line error=0

@@ -1,0 +1,148 @@
+2018/07/26 07:34:54 Set default log level to INFO
+2018/07/26 07:34:54 Set default log level to DEBUG
+2018/07/26 07:34:54 Tunable 'logmsg.level' set to DEBUG
+2018/07/26 07:34:54 Not loading /github/comdb2/tests/test_820/bin/comdb2.lrl and /github/comdb2/tests/test_820/bin/comdb2_local.lrl.
+2018/07/26 07:34:54 processing /github/comdb2/tests/test_820/socksqlmasterswings820/socksqlmasterswings820.lrl...
+2018/07/26 07:34:54 Set default log level to INFO
+2018/07/26 07:34:54 [ERROR] Unrecognised switch block_set_commit_genid_trace
+2018/07/26 07:34:54 Set default log level to DEBUG
+2018/07/26 07:34:54 Tunable 'logmsg.level' set to DEBUG
+2018/07/26 07:34:54 Tunable 'set_repinfo_master_trace' set to ON
+2018/07/26 07:34:54 Tunable 'extended_sql_debug_trace' set to ON
+2018/07/26 07:34:54 Tunable 'dump_blkseq' set to ON
+2018/07/26 07:34:54 Tunable 'extended_sql_debug_trace' set to ON
+2018/07/26 07:34:54 Tunable 'nowatch' set to ON
+2018/07/26 07:34:54 Tunable 'name' set to socksqlmasterswings820
+2018/07/26 07:34:54 Tunable 'dir' set to /github/comdb2/tests/test_820/socksqlmasterswings820
+2018/07/26 07:34:54 Tunable 'make_slow_replicants_incoherent' set to OFF
+2018/07/26 07:34:54 database socksqlmasterswings820 starting
+2018/07/26 07:34:54 initialized tz hash table
+2018/07/26 07:34:54 SSL backend initialized.
+2018/07/26 07:34:54 ctrace_openlog_taskname_lk:open ctrace file /github/comdb2/tests/test_820/var/log/cdb2/socksqlmasterswings820.trc.c
+2018/07/26 07:34:54 ### start ctrace file /github/comdb2/tests/test_820/var/log/cdb2/socksqlmasterswings820.trc.c by task socksqlma ###
+2018/07/26 07:34:54 no cache size specified, using default value of 2096kb
+2018/07/26 07:34:54 adjusting cache to specified min of 65536
+2018/07/26 07:34:54 No db number set (missing/invalid dbnum lrl entry?)
+2018/07/26 07:34:54 opened request log file /github/comdb2/tests/test_820/var/log/cdb2/socksqlmasterswings820.longreqs
+2018/07/26 07:34:54 opened request log file /github/comdb2/tests/test_820/var/log/cdb2/socksqlmasterswings820.statreqs
+2018/07/26 07:34:54 resolve_dc(c1) open rc -1 cdb2_get_dbhosts: no default_type entry in comdb2db config.!
+2018/07/26 07:34:54 Cleared temporary tables rc=-1
+2018/07/26 07:34:54 machine_class_default(c1) open rc -1 cdb2_get_dbhosts: no default_type entry in comdb2db config.!
+2018/07/26 07:34:54 Setting repinfo master to .invalid from bdb_open_int line 5546
+2018/07/26 07:34:54 Setting repinfo master to fakehost from dbenv_open line 2168
+2018/07/26 07:34:54 setting direct_db
+2018/07/26 07:34:54 Cache:64MB  Segments:1  Segment-size:64MB
+2018/07/26 07:34:54 registering <socksqlmasterswings820> with net code
+2018/07/26 07:34:54 Temptable pool enabled.
+2018/07/26 07:34:54 DB_ENV_DIRECT_DB is set
+2018/07/26 07:34:54 Lock & Lock-object partitions:73
+2018/07/26 07:34:54 Locker partitions:23
+2018/07/26 07:34:54 Initial Lockers:256  Initial Locks:1024  Initial Lock-objects:1024
+2018/07/26 07:34:54 Lockers/partition:11  Locks/partition:14  Lock-objects/partition:14
+2018/07/26 07:34:54 Locker hash buckets/partition:16  Lock-object hash buckets/partition:32
+2018/07/26 07:34:54 blkseq recovery 67:0 <- 0:67, 0 blkseqs, 0 during recovery
+2018/07/26 07:34:54 dbenv_open line 2748 calling rep_start as master with egen 0
+2018/07/26 07:34:54 __rep_start line 325 setting rep->gen from 0 to 1, egen from 1 to 2
+2018/07/26 07:34:54 __rep_start line 339 setting gen to rep->egen 2
+2018/07/26 07:34:54 __rep_start line 340 setting rep->gen from 1 to 2, egen from 2 to 3
+2018/07/26 07:34:54 __rep_start line 357 upgrading to gen 2 egen 3
+2018/07/26 07:34:54 __rep_start line 381 sending REP_NEWMASTER
+2018/07/26 07:34:54 creating the watcher thread
+2018/07/26 07:34:54 phase 2 replication catchup passed
+2018/07/26 07:34:54 phase 3 replication catchup passed
+2018/07/26 07:34:54 phase 4 replication catchup passed
+2018/07/26 07:34:54 passed_dbenv_open
+2018/07/26 07:34:54 new_master_callback:2954 new master node fakehost, rep_master c1, rep_egen 3
+2018/07/26 07:34:54 sc_set_running(table=(null) running=0 seed=0x0): gbl_schema_change_in_progress 0
+2018/07/26 07:34:54 @LSN 0:0
+2018/07/26 07:34:54 new snapisol is not running
+2018/07/26 07:34:54 open_dbs: running with CREATE flag
+2018/07/26 07:34:54 enabling checksums for XXX.comdb2_llmeta.dta
+2018/07/26 07:34:54 Successfully opened low level meta table
+2018/07/26 07:34:54 starting backend db engine
+2018/07/26 07:34:54 open table 'jobs'
+2018/07/26 07:34:54 open_dbs: running with CREATE flag
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas7
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas7 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas6
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas6 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas5
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas5 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas4
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas4 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas3
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas3 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas2
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas2 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas1
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas1 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000020000.datas0
+2018/07/26 07:34:54 dbp->open XXX.jobs_0000000000020000.datas0 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000030000.index
+2018/07/26 07:34:54 enabling checksums for XXX.jobs_0000000000040000.index
+2018/07/26 07:34:54 open table 'schedule'
+2018/07/26 07:34:54 open_dbs: running with CREATE flag
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas7
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas7 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas6
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas6 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas5
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas5 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas4
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas4 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas3
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas3 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas2
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas2 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas1
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas1 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000070000.datas0
+2018/07/26 07:34:54 dbp->open XXX.schedule_0000000000070000.datas0 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000080000.index
+2018/07/26 07:34:54 enabling checksums for XXX.schedule_0000000000090000.index
+2018/07/26 07:34:54 open table 'sqlite_stat1'
+2018/07/26 07:34:54 open_dbs: running with CREATE flag
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas7
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas7 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas6
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas6 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas5
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas5 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas4
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas4 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas3
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas3 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas2
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas2 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas1
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas1 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000c0000.datas0
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat1_00000000000c0000.datas0 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat1_00000000000d0000.index
+2018/07/26 07:34:54 open table 'sqlite_stat4'
+2018/07/26 07:34:54 open_dbs: running with CREATE flag
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas7
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas7 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas6
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas6 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas5
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas5 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas4
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas4 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas3
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas3 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas2
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas2 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas1
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas1 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000100000.datas0
+2018/07/26 07:34:54 dbp->open XXX.sqlite_stat4_0000000000100000.datas0 type=1 rc 0
+2018/07/26 07:34:54 enabling checksums for XXX.sqlite_stat4_0000000000110000.index
+2018/07/26 07:34:54 open_dbs: running with CREATE flag
+2018/07/26 07:34:54 enabling checksums for XXX.comdb2_metadata.dta
+2018/07/26 07:34:54 backend db engine started.  master is fakehost
+2018/07/26 07:34:54 removing csc2 file /github/comdb2/tests/test_820/socksqlmasterswings820/t.csc2
+2018/07/26 07:34:54 -exiting.
+2018/07/26 07:34:54 stopping db engine...
+2018/07/26 07:34:54 Created database socksqlmasterswings820.
+2018/07/26 07:34:55 goodbye

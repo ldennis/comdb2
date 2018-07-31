@@ -1,0 +1,125 @@
+07:50:01> + [[ 0 == 1 ]]
+07:50:01> + echo '!socksql_master_swings: stopping'
+07:50:01> !socksql_master_swings: stopping
+07:50:01> + '[' -z /github/comdb2/tests/test_820 ']'
+07:50:01> + '[' -z /github/comdb2/tests/test_820/tmp ']'
+07:50:01> + successful=0
+07:50:01> + [[ '' -eq 1 ]]
+07:50:01> + [[ '' -eq 1 ]]
+07:50:01> + [[ '' -eq 1 ]]
+07:50:01> + [[ -z m1 m2 m3 ]]
+07:50:01> + pidfilelist=
+07:50:01> + for node in '$CLUSTER'
+07:50:01> + build_pidfilelist /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m1.pid
+07:50:01> + flush_node m1
+07:50:01> + local pidfile=/github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m1.pid
+07:50:01> + local node=m1
+07:50:01> + [[ -f /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m1.pid ]]
+07:50:01> + sleep 1
+07:50:01> + cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg socksqlmasterswings820 --host m1 'exec procedure sys.cmd.send("flush")'
+07:50:01> ++ cat /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m1.pid
+07:50:01> + local pid=11332
+07:50:01> + ps -p 11332 -o args
+07:50:01> + grep -q 'comdb2 socksqlmasterswings820'
+07:50:01> + [[ 0 -eq 0 ]]
+07:50:01> + echo 'socksql_master_swings: adding to filelist 11332'
+07:50:01> socksql_master_swings: adding to filelist 11332
+07:50:01> + pidfilelist=' 11332'
+07:50:01> + rm -f /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m1.pid
+07:50:01> + for node in '$CLUSTER'
+07:50:01> + build_pidfilelist /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m2.pid
+07:50:01> + flush_node m2
+07:50:01> + local pidfile=/github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m2.pid
+07:50:01> + local node=m2
+07:50:01> + [[ -f /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m2.pid ]]
+07:50:01> + sleep 1
+07:50:01> + cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg socksqlmasterswings820 --host m2 'exec procedure sys.cmd.send("flush")'
+07:50:01> ++ cat /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m2.pid
+07:50:01> + local pid=11335
+07:50:01> + ps -p 11335 -o args
+07:50:01> + grep -q 'comdb2 socksqlmasterswings820'
+07:50:01> + [[ 0 -eq 0 ]]
+07:50:01> + echo 'socksql_master_swings: adding to filelist 11335'
+07:50:01> socksql_master_swings: adding to filelist 11335
+07:50:01> + pidfilelist=' 11332 11335'
+07:50:01> + rm -f /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m2.pid
+07:50:01> + for node in '$CLUSTER'
+07:50:01> + build_pidfilelist /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m3.pid
+07:50:01> + flush_node m3
+07:50:01> + local pidfile=/github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m3.pid
+07:50:01> + [[ -f /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m3.pid ]]
+07:50:01> + local node=m3
+07:50:01> + sleep 1
+07:50:01> ++ cat /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m3.pid
+07:50:01> + cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg socksqlmasterswings820 --host m3 'exec procedure sys.cmd.send("flush")'
+07:50:01> + local pid=11338
+07:50:01> + ps -p 11338 -o args
+07:50:01> + grep -q 'comdb2 socksqlmasterswings820'
+07:50:01> + [[ 0 -eq 0 ]]
+07:50:01> + echo 'socksql_master_swings: adding to filelist 11338'
+07:50:01> socksql_master_swings: adding to filelist 11338
+07:50:01> + pidfilelist=' 11332 11335 11338'
+07:50:01> + rm -f /github/comdb2/tests/test_820/tmp/socksqlmasterswings820.m3.pid
+07:50:01> + wait
+07:50:02> + sleep 1
+07:50:02> + cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg socksqlmasterswings820 --host m1 'exec procedure sys.cmd.send("reql events off")'
+07:50:02> + sleep 1
+07:50:02> + cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg socksqlmasterswings820 --host m2 'exec procedure sys.cmd.send("reql events off")'
+07:50:02> + sleep 1
+07:50:02> + cdb2sql --cdb2cfg /github/comdb2/tests/test_820/socksqlmasterswings820/comdb2db.cfg socksqlmasterswings820 --host m3 'exec procedure sys.cmd.send("reql events off")'
+07:50:03> + '[' -n ' 11332 11335 11338' ']'
+07:50:03> + echo 'killing  11332 11335 11338'
+07:50:03> killing  11332 11335 11338
+07:50:03> + kill -9 11332 11335 11338
+07:50:03> + cleanup_cluster
+07:50:03> + local 'deregister_db_port=pgrep pmux > /dev/null && (exec 3<>/dev/tcp/localhost/5105; echo del comdb2/replication/socksqlmasterswings820 >&3 )'
+07:50:03> + local dbport
+07:50:03> + [[ -z m1 m2 m3 ]]
+07:50:03> ++ grep c1
+07:50:03> ++ echo m1 m2 m3
+07:50:03> + [[ -n '' ]]
+07:50:03> + '[' 1 == 1 ']'
+07:50:03> + '[' 0 == 1 ']'
+07:50:03> + local node
+07:50:03> + for node in '${CLUSTER/$HOSTNAME/}'
+07:50:03> ++ /github/comdb2/tests/tools/send_msg_port.sh -h m1 'get comdb2/replication/socksqlmasterswings820' 5105
+07:50:04> + dbport=19000
+07:50:04> + echo 'deregistering socksqlmasterswings820 (port 19000) from m1 pmux:5105'
+07:50:04> deregistering socksqlmasterswings820 (port 19000) from m1 pmux:5105
+07:50:04> + ssh -o StrictHostKeyChecking=no m1 'pgrep pmux > /dev/null && (exec 3<>/dev/tcp/localhost/5105; echo del comdb2/replication/socksqlmasterswings820 >&3 )'
+07:50:04> + '[' x/github/comdb2/tests/test_820/socksqlmasterswings820 == x ']'
+07:50:04> + '[' 0 '!=' 1 ']'
+07:50:04> + echo copy m1:/github/comdb2/tests/test_820/socksqlmasterswings820 content locally to /github/comdb2/tests/test_820/socksqlmasterswings820/m1/ for investigation
+07:50:04> copy m1:/github/comdb2/tests/test_820/socksqlmasterswings820 content locally to /github/comdb2/tests/test_820/socksqlmasterswings820/m1/ for investigation
+07:50:04> + mkdir /github/comdb2/tests/test_820/socksqlmasterswings820/m1/
+07:50:04> + scp -r -o StrictHostKeyChecking=no m1:/github/comdb2/tests/test_820/socksqlmasterswings820 /github/comdb2/tests/test_820/socksqlmasterswings820/m1/
+07:50:04> + for node in '${CLUSTER/$HOSTNAME/}'
+07:50:04> + scp -r -o StrictHostKeyChecking=no 'm1:/github/comdb2/tests/test_820/var/log/cdb2/socksqlmasterswings820*' /github/comdb2/tests/test_820/socksqlmasterswings820/m1/
+07:50:04> ++ /github/comdb2/tests/tools/send_msg_port.sh -h m2 'get comdb2/replication/socksqlmasterswings820' 5105
+07:50:04> + dbport=19000
+07:50:04> + echo 'deregistering socksqlmasterswings820 (port 19000) from m2 pmux:5105'
+07:50:04> deregistering socksqlmasterswings820 (port 19000) from m2 pmux:5105
+07:50:04> + ssh -o StrictHostKeyChecking=no m2 'pgrep pmux > /dev/null && (exec 3<>/dev/tcp/localhost/5105; echo del comdb2/replication/socksqlmasterswings820 >&3 )'
+07:50:04> + '[' x/github/comdb2/tests/test_820/socksqlmasterswings820 == x ']'
+07:50:04> + '[' 0 '!=' 1 ']'
+07:50:04> + echo copy m2:/github/comdb2/tests/test_820/socksqlmasterswings820 content locally to /github/comdb2/tests/test_820/socksqlmasterswings820/m2/ for investigation
+07:50:04> copy m2:/github/comdb2/tests/test_820/socksqlmasterswings820 content locally to /github/comdb2/tests/test_820/socksqlmasterswings820/m2/ for investigation
+07:50:04> + mkdir /github/comdb2/tests/test_820/socksqlmasterswings820/m2/
+07:50:04> + scp -r -o StrictHostKeyChecking=no m2:/github/comdb2/tests/test_820/socksqlmasterswings820 /github/comdb2/tests/test_820/socksqlmasterswings820/m2/
+07:50:04> + for node in '${CLUSTER/$HOSTNAME/}'
+07:50:04> + scp -r -o StrictHostKeyChecking=no 'm2:/github/comdb2/tests/test_820/var/log/cdb2/socksqlmasterswings820*' /github/comdb2/tests/test_820/socksqlmasterswings820/m2/
+07:50:04> ++ /github/comdb2/tests/tools/send_msg_port.sh -h m3 'get comdb2/replication/socksqlmasterswings820' 5105
+07:50:04> + dbport=19000
+07:50:04> + echo 'deregistering socksqlmasterswings820 (port 19000) from m3 pmux:5105'
+07:50:04> deregistering socksqlmasterswings820 (port 19000) from m3 pmux:5105
+07:50:04> + ssh -o StrictHostKeyChecking=no m3 'pgrep pmux > /dev/null && (exec 3<>/dev/tcp/localhost/5105; echo del comdb2/replication/socksqlmasterswings820 >&3 )'
+07:50:05> + '[' x/github/comdb2/tests/test_820/socksqlmasterswings820 == x ']'
+07:50:05> + '[' 0 '!=' 1 ']'
+07:50:05> + echo copy m3:/github/comdb2/tests/test_820/socksqlmasterswings820 content locally to /github/comdb2/tests/test_820/socksqlmasterswings820/m3/ for investigation
+07:50:05> copy m3:/github/comdb2/tests/test_820/socksqlmasterswings820 content locally to /github/comdb2/tests/test_820/socksqlmasterswings820/m3/ for investigation
+07:50:05> + mkdir /github/comdb2/tests/test_820/socksqlmasterswings820/m3/
+07:50:05> + wait
+07:50:05> + scp -r -o StrictHostKeyChecking=no 'm3:/github/comdb2/tests/test_820/var/log/cdb2/socksqlmasterswings820*' /github/comdb2/tests/test_820/socksqlmasterswings820/m3/
+07:50:05> + scp -r -o StrictHostKeyChecking=no m3:/github/comdb2/tests/test_820/socksqlmasterswings820 /github/comdb2/tests/test_820/socksqlmasterswings820/m3/
+07:50:06> + echo 'Unsetup completed'
+07:50:06> Unsetup completed
