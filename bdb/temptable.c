@@ -443,19 +443,19 @@ static struct temp_table *bdb_temp_table_create_main(bdb_state_type *bdb_state,
 
 #ifdef _LINUX_SOURCE
     if (gbl_debug_temptables) {
+        int nframes;
+        void *stack[100];
         char *sql;
         sql = pthread_getspecific(current_sql_query_key);
         if (sql)
             logmsg(LOGMSG_USER, "creating a temp table object %p: %s\n", tbl, sql);
-        else {
-            int nframes;
-            void *stack[100];
+        else
             logmsg(LOGMSG_USER, "creating a temp table object %p: ", tbl);
-            nframes = backtrace(stack, 100);
-            for (int i = 0; i < nframes; i++)
-               logmsg(LOGMSG_USER, "%p ", stack[i]);
-           logmsg(LOGMSG_USER, "\n");
-        }
+
+        nframes = backtrace(stack, 100);
+        for (int i = 0; i < nframes; i++)
+            logmsg(LOGMSG_USER, "%p ", stack[i]);
+        logmsg(LOGMSG_USER, "\n");
     }
 #endif
 

@@ -7060,6 +7060,7 @@ sqlite3BtreeCursor_temptable(Btree *pBt,      /* The btree */
                              struct sql_thread *thd)
 {
     int bdberr = 0;
+    struct sqlclntstate *clnt = thd->clnt;
     cur->cursor_class = CURSORCLASS_TEMPTABLE;
 
     if (iTable < 0 || iTable > pBt->num_temp_tables) {
@@ -7074,8 +7075,10 @@ sqlite3BtreeCursor_temptable(Btree *pBt,      /* The btree */
         return SQLITE_INTERNAL;
     }
 
-    int num_tables = 0;
-    sqlite3BtreeCreateTable(pBt, &num_tables, BTREE_INTKEY);
+    if (clnt->is_expert) {
+        int num_tables = 0;
+        sqlite3BtreeCreateTable(pBt, &num_tables, BTREE_INTKEY);
+    }
 
     struct temptable *src = &pBt->temp_tables[iTable];
     cur->tmptable->tbl = src->tbl;
