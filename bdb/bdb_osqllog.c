@@ -4467,7 +4467,8 @@ again:
         if (rc = pCur->logc->get(pCur->logc, &pCur->curLsn, &pCur->data,
                                  pCur->getflags) != 0) {
             pCur->hitLast = 1;
-        }
+        } else
+            pCur->hitLast = 0;
         pCur->getflags = DB_NEXT;
         if (pCur->data.data)
             LOGCOPY_32(&rectype, pCur->data.data);
@@ -4508,6 +4509,7 @@ int bdb_llog_cursor_first(bdb_llog_cursor *pCur)
         if (pCur->data.data) {
             free(pCur->data.data);
             pCur->data.data = NULL;
+            pCur->data.size = 0;
         }
         if (pCur->log) {
             bdb_osql_log_destroy(pCur->log);
@@ -4584,6 +4586,20 @@ void bdb_llog_cursor_close(bdb_llog_cursor *pCur)
     if (pCur->data.data) {
         free(pCur->data.data);
         pCur->data.data = NULL;
+        pCur->data.size = 0;
+    }
+    if (pCur->log) {
+        bdb_osql_log_destroy(pCur->log);
+        pCur->log = NULL;
+    }
+}
+
+void bdb_llog_cursor_cleanup(bdb_llog_cursor *pCur)
+{
+    if (pCur->data.data) {
+        free(pCur->data.data);
+        pCur->data.data = NULL;
+        pCur->data.size = 0;
     }
     if (pCur->log) {
         bdb_osql_log_destroy(pCur->log);
