@@ -4605,7 +4605,7 @@ again:
                                             rectype)) {
         /* Reconstructed logical log */
         case 0:
-            logmsg(LOGMSG_INFO,
+            logmsg(LOGMSG_DEBUG,
                    "%s line %d couldn't create payload for %d:%d\n", __func__,
                    __LINE__, pCur->curLsn.file, pCur->curLsn.offset);
             assert(pCur->log != NULL);
