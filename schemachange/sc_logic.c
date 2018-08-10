@@ -478,12 +478,12 @@ int do_schema_change_tran(sc_arg_t *arg)
 
             /* return NOMASTER for live schemachange writes */
             start_exclusive_backend_request(thedb);
-            Pthread_rwlock_wrlock(&sc_live_rwlock);
+            Pthread_rwlock_wrlock(&s->db->sc_live_lk);
             s->db->sc_to = NULL;
             s->db->sc_from = NULL;
             s->db->sc_abort = 0;
             s->db->sc_downgrading = 1;
-            Pthread_rwlock_unlock(&sc_live_rwlock);
+            Pthread_rwlock_unlock(&s->db->sc_live_lk);
             end_backend_request(thedb);
 
             bdb_close_only(s->newdb->handle, &bdberr);
