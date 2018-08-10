@@ -180,6 +180,10 @@ struct schema_change_type {
                            whole schema change (I will change this in the
                            future)*/
 
+    int got_tablelock;
+    int logical_livesc;
+    int sc_thd_failed;
+
     /*********************** temporary fields for table upgrade
      * ************************/
     unsigned long long start_genid;
@@ -192,9 +196,6 @@ struct schema_change_type {
      * *****************************/
 
     size_t packed_len;
-
-    int got_tablelock;
-    int logical_livesc;
 };
 
 struct ireq;
