@@ -2335,7 +2335,8 @@ int upd_new_record(struct ireq *iq, void *trans, unsigned long long oldgenid,
                    const void *new_dta, unsigned long long ins_keys,
                    unsigned long long del_keys, int nd_len, const int *updCols,
                    blob_buffer_t *blobs, int deferredAdd,
-                   blob_buffer_t *del_idx_blobs, blob_buffer_t *add_idx_blobs)
+                   blob_buffer_t *del_idx_blobs, blob_buffer_t *add_idx_blobs,
+                   int verify_retry)
 {
     int retrc = 0;
     int prefixes = 0;
@@ -2438,10 +2439,10 @@ int upd_new_record(struct ireq *iq, void *trans, unsigned long long oldgenid,
         }
 
         /* dat_upv_sc requests the bdb layer to use newgenid argument */
-        rc = dat_upv_sc(iq, trans,
-                        0, /*offset to verify from, only zero is supported*/
-                        NULL, 0, oldgenid, (void *)sc_new, newrec_len, 2,
-                        &newgenidcpy, 0, iq->blkstate->modnum); /* verifydta */
+        rc = dat_upv_sc(
+            iq, trans, 0, /*offset to verify from, only zero is supported*/
+            NULL, 0, oldgenid, (void *)sc_new, newrec_len, 2, &newgenidcpy, 0,
+            iq->blkstate ? iq->blkstate->modnum : 0); /* verifydta */
 
         if (newgenid != newgenidcpy) {
             logmsg(LOGMSG_ERROR, "upd_new_record: dat_upv_sc generated genid!! newgenid "
@@ -2459,13 +2460,15 @@ int upd_new_record(struct ireq *iq, void *trans, unsigned long long oldgenid,
 
         /* workaround a bug in current schema change; if we somehow
            fail to find the row in the new btree, try again */
-        if (rc == ERR_VERIFY)
+        if (rc == ERR_VERIFY && verify_retry)
             rc = RC_INTERNAL_RETRY;
 
         if (rc != 0) {
-            logmsg(LOGMSG_ERROR, 
-                    "upd_new_record oldgenid 0x%llx dat_upv_sc -> rc %d failed\n",
-                    oldgenid, rc);
+            if (rc != ERR_VERIFY)
+                logmsg(LOGMSG_ERROR,
+                       "upd_new_record oldgenid 0x%llx dat_upv_sc -> rc %d "
+                       "failed\n",
+                       oldgenid, rc);
             retrc = rc;
             goto err;
         }
@@ -2677,13 +2680,15 @@ int upd_new_record(struct ireq *iq, void *trans, unsigned long long oldgenid,
         }
 
         /* remap delete not found to retry */
-        if (rc == IX_NOTFND)
+        if (rc == IX_NOTFND && verify_retry)
             rc = RC_INTERNAL_RETRY;
 
         if (rc != 0) {
-            logmsg(LOGMSG_ERROR, "upd_new_record oldgenid 0x%llx ix_delk -> "
-                            "ix%d, rc=%d failed\n",
-                    oldgenid, ixnum, rc);
+            if (rc != IX_NOTFND)
+                logmsg(LOGMSG_ERROR,
+                       "upd_new_record oldgenid 0x%llx ix_delk -> "
+                       "ix%d, rc=%d failed\n",
+                       oldgenid, ixnum, rc);
             retrc = rc;
             goto err;
         }
@@ -2906,7 +2911,7 @@ int del_new_record(struct ireq *iq, void *trans, unsigned long long genid,
         }
 
         /* remap delete not found to retry */
-        if (rc == IX_NOTFND)
+        if (rc == IX_NOTFND && verify_retry)
             rc = RC_INTERNAL_RETRY;
 
         if (rc != 0) {
