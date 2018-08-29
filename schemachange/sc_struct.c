@@ -48,6 +48,10 @@ struct schema_change_type *init_schemachange_type(struct schema_change_type *sc)
         free_schema_change_type(sc);
         return NULL;
     }
+    if (pthread_mutex_init(&sc->livesc_mtx, NULL)) {
+        free_schema_change_type(sc);
+        return NULL;
+    }
     return sc;
 }
 
@@ -85,6 +89,7 @@ void free_schema_change_type(struct schema_change_type *s)
 
         free_dests(s);
         pthread_mutex_destroy(&s->mtx);
+        pthread_mutex_destroy(&s->livesc_mtx);
 
         if (s->sb && s->must_close_sb) close_appsock(s->sb);
         if (!s->onstack) {
