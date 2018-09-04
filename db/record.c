@@ -1676,6 +1676,7 @@ int upd_record(struct ireq *iq, void *trans, void *primkey, int rrn,
         }
     }
 
+    int force_inplace_blob_off = live_sc_disable_inplace_blobs(iq);
     /*
      * Now we need to change the blobs for this tag.  For each blob
      * in the user tag, get the ondisk blob number and delete/update
@@ -1727,8 +1728,8 @@ int upd_record(struct ireq *iq, void *trans, void *primkey, int rrn,
 
         if (upgenid) {
             if (blobno < iq->usedb->numblobs) {
-                if (gbl_inplace_blobs && gbl_inplace_blob_optimization &&
-                    same_genid_with_upd) {
+                if (!force_inplace_blob_off && gbl_inplace_blobs &&
+                    gbl_inplace_blob_optimization && same_genid_with_upd) {
                     if (iq->debug)
                         reqprintf(iq, "blob_upd_genid SKIP BLOBNO %d BLOB "
                                       "OPTIMIZATION RC %d",
@@ -1752,7 +1753,7 @@ int upd_record(struct ireq *iq, void *trans, void *primkey, int rrn,
         }
 
         /* Attempt to update blobs in-place if that's enabled. */
-        if (gbl_inplace_blobs) {
+        if (!force_inplace_blob_off && gbl_inplace_blobs) {
             if (!blob->exists) {
                 rc = blob_del(iq, trans, rrn, vgenid, blobno);
                 if (iq->debug)
@@ -1809,8 +1810,8 @@ int upd_record(struct ireq *iq, void *trans, void *primkey, int rrn,
 
     /* Update the genids of any remaining blobs */
     for (; blobno < iq->usedb->numblobs; blobno++) {
-        if (gbl_inplace_blobs && gbl_inplace_blob_optimization &&
-            same_genid_with_upd) {
+        if (!force_inplace_blob_off && gbl_inplace_blobs &&
+            gbl_inplace_blob_optimization && same_genid_with_upd) {
             if (iq->debug)
                 reqprintf(
                     iq, "blob_upd_genid SKIP BLOBNO %d BLOB OPTIMIZATION RC %d",
