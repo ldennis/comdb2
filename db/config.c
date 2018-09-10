@@ -1131,7 +1131,6 @@ static int read_lrl_option(struct dbenv *dbenv, char *line,
         bdb_attr_set(dbenv->bdb_attr, BDB_ATTR_SNAPISOL, 1);
         gbl_snapisol = 1;
         gbl_new_snapisol = 1;
-        gbl_new_snapisol_asof = 1;
         gbl_new_snapisol_logging = 1;
         logmsg(LOGMSG_INFO, "Enabled new snapshot\n");
     } else if (tokcmp(tok, ltok, "enable_new_snapshot_asof") == 0) {
