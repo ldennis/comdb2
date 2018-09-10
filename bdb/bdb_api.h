@@ -2093,4 +2093,7 @@ int bdb_lock_stats(bdb_state_type *bdb_state, int64_t *nlocks);
 
 int bdb_rep_stats(bdb_state_type *bdb_state, int64_t *nrep_deadlocks);
 
+void bdb_set_logical_live_sc(bdb_state_type *bdb_state);
+void bdb_clear_logical_live_sc(bdb_state_type *bdb_state);
+
 #endif
