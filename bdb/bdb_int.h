@@ -445,8 +445,8 @@ struct tran_tag {
     /* Set to 1 if we got the bdb lock */
     int got_bdb_lock;
 
-    /* Set to 1 if this is a schema change txn */
-    int schema_change_txn;
+    /* Set to 1 if this txn touches a logical live sc table */
+    int force_logical_commit;
 
     /* cache the versions of dta files to catch schema changes and fastinits */
     int table_version_cache_sz;
@@ -1029,6 +1029,8 @@ struct bdb_state_tag {
     uint16_t *fld_hints;
 
     int hellofd;
+
+    int logical_live_sc;
 };
 
 /* define our net user types */
@@ -1345,7 +1347,7 @@ int ll_dta_upgrade(bdb_state_type *bdb_state, int rrn, unsigned long long genid,
                    DB *dbp, tran_type *tran, int dtafile, int dtastripe,
                    DBT *dta);
 
-int add_snapisol_logging(bdb_state_type *bdb_state);
+int add_snapisol_logging(bdb_state_type *bdb_state, tran_type *tran);
 int phys_key_add(bdb_state_type *bdb_state, tran_type *tran,
                  unsigned long long genid, int ixnum, DBT *dbt_key,
                  DBT *dbt_data);

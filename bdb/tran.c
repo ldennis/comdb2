@@ -1538,7 +1538,8 @@ static int bdb_tran_commit_with_seqnum_int_int(
             abort();
 
         /* only generate a log for PARENT transactions */
-        if (tran->parent == NULL && add_snapisol_logging(bdb_state)) {
+        if (tran->parent == NULL && (add_snapisol_logging(bdb_state, tran) ||
+                                     tran->force_logical_commit)) {
             tran_type *parent = (tran->parent) ? tran->parent : tran; /*nop*/
             int iirc;
             int isabort;

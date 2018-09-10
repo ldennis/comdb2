@@ -1774,6 +1774,8 @@ extern char *gbl_dbdir;
 
 extern double gbl_cpupercent;
 
+extern int gbl_logical_live_sc;
+
 /* init routines */
 int appsock_init(void);
 int thd_init(void);
