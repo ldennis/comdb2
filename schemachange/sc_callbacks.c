@@ -505,7 +505,7 @@ void sc_del_unused_files_tran(struct dbtable *db, tran_type *tran)
 {
     int bdberr;
 
-    if (db == NULL)
+    if (db == NULL || db->handle == NULL)
         return;
 
     pthread_mutex_lock(&gbl_sc_lock);
