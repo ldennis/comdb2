@@ -843,11 +843,11 @@ int live_sc_post_update(struct ireq *iq, void *trans,
 int live_sc_disable_inplace_blobs(struct ireq *iq)
 {
     int rc = 0;
-    pthread_rwlock_rdlock(&iq->usedb->sc_live_lk);
+    Pthread_rwlock_rdlock(&iq->usedb->sc_live_lk);
     if (iq->usedb->sc_from == iq->usedb && iq->usedb->sc_live_logical &&
         iq->usedb->sc_to->ix_blob)
         rc = 1;
-    pthread_rwlock_unlock(&iq->usedb->sc_live_lk);
+    Pthread_rwlock_unlock(&iq->usedb->sc_live_lk);
     return rc;
 }
 
@@ -1029,7 +1029,6 @@ int add_schema_change_tables()
 int sc_timepart_add_table(const char *existingTableName,
                           const char *newTableName, struct errstat *xerr)
 {
-    bdb_state_type *bdb_state = thedb->bdb_env;
     struct schema_change_type sc = {0};
     char *schemabuf = NULL;
     struct dbtable *db;
@@ -1120,7 +1119,6 @@ error:
 
 int sc_timepart_drop_table(const char *tableName, struct errstat *xerr)
 {
-    bdb_state_type *bdb_state = thedb->bdb_env;
     struct schema_change_type sc = {0};
     struct dbtable *db;
     char *schemabuf = NULL;
