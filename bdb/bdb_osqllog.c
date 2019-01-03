@@ -4471,6 +4471,11 @@ again:
             LOGCOPY_32(&rectype, pCur->data.data);
         else
             rectype = 0;
+        if (pCur->maxLsn.file > 0 &&
+            log_compare(&pCur->curLsn, &pCur->maxLsn) > 0) {
+            /* traverse upto maxLsn */
+            return 0;
+        }
     } while (!pCur->hitLast && !is_commit(rectype));
 
     if (!pCur->hitLast) {
