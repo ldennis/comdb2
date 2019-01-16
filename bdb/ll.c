@@ -66,6 +66,7 @@
 #include <list.h>
 #include <lockmacro.h>
 
+#include <memory_sync.h>
 #include "genid.h"
 #include "logmsg.h"
 
@@ -169,6 +170,7 @@ int bdb_logical_logging_enabled()
 }
 
 extern int gbl_is_physical_replicant;
+extern int gbl_sc_abort;
 int add_snapisol_logging(bdb_state_type *bdb_state, tran_type *tran)
 {
     /* physical_replicants:
@@ -183,15 +185,37 @@ int add_snapisol_logging(bdb_state_type *bdb_state, tran_type *tran)
             tran->force_logical_commit = 1;
             if (tran->dirty_table_hash == NULL) {
                 tran->dirty_table_hash =
-                    hash_init_strptr(offsetof(bdb_state_type, name));
+                    hash_init_strptr(offsetof(struct sc_dirty_table, name));
                 if (tran->dirty_table_hash == NULL) {
-                    logmsg(LOGMSG_FATAL,
+                    logmsg(LOGMSG_ERROR,
                            "%s: failed to init dirty table hash\n", __func__);
-                    abort();
+                    gbl_sc_abort = 1;
+                    MEMORY_SYNC;
+                    return -1;
                 }
                 if (hash_find_readonly(tran->dirty_table_hash,
                                        &(bdb_state->name)) == NULL) {
-                    hash_add(tran->dirty_table_hash, bdb_state);
+                    struct sc_dirty_table *d =
+                        malloc(sizeof(struct sc_dirty_table));
+                    if (d == NULL) {
+                        logmsg(LOGMSG_ERROR,
+                               "%s: failed to malloc dirty table entry\n",
+                               __func__);
+                        gbl_sc_abort = 1;
+                        MEMORY_SYNC;
+                        return -1;
+                    }
+                    d->name = strdup(bdb_state->name);
+                    d->bdb_state = bdb_state;
+                    d->dbnum = get_dbnum_by_handle(bdb_state);
+                    if (d->name == NULL || d->dbnum < 0) {
+                        logmsg(LOGMSG_ERROR, "%s: name %p dbnum %d\n", __func__,
+                               d->name, d->dbnum);
+                        gbl_sc_abort = 1;
+                        MEMORY_SYNC;
+                        return -1;
+                    }
+                    hash_add(tran->dirty_table_hash, d);
                 }
             }
         }

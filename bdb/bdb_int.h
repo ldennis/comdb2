@@ -286,6 +286,12 @@ struct checkpoint_list {
     LINKC_T(struct checkpoint_list) lnk;
 };
 
+struct sc_dirty_table {
+    char *name;
+    bdb_state_type *bdb_state;
+    int dbnum;
+};
+
 struct tran_tag {
     tranclass_type tranclass;
     DB_TXN *tid;

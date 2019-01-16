@@ -58,6 +58,7 @@
 
 #include <assert.h>
 
+#include <memory_sync.h>
 #include "nodemap.h"
 #include "logmsg.h"
 
@@ -1464,16 +1465,66 @@ void abort_at_exit(void)
     abort();
 }
 
+extern bdb_state_type *gbl_bdb_state;
+extern int gbl_sc_abort;
 static int update_logical_redo_lsn(void *obj, void *arg)
 {
-    bdb_state_type *bdb_state = (bdb_state_type *)obj;
-    if (bdb_state->logical_live_sc == 0)
+    int rc = 0, bdberr = 0;
+    tran_type *trans = NULL;
+    struct sc_dirty_table *d = (struct sc_dirty_table *)obj;
+    char *name = d->name;
+    int dbnum = d->dbnum;
+    bdb_state_type *bdb_state = d->bdb_state;
+    free(d);
+
+retry:
+    trans = bdb_tran_begin(gbl_bdb_state, NULL, &bdberr);
+    if (!trans) {
+        if (bdberr == BDBERR_DEADLOCK)
+            goto retry;
+        logmsg(LOGMSG_ERROR, "%s: failed to get transaction, bdberr=%d\n",
+               __func__, bdberr);
+        gbl_sc_abort = 1;
+        MEMORY_SYNC;
         return 0;
+    }
+
+    rc = bdb_lock_tablename_read(gbl_bdb_state, name, trans);
+    if (rc == BDBERR_DEADLOCK) {
+        bdb_tran_abort(gbl_bdb_state, trans, &bdberr);
+        goto retry;
+    } else if (rc) {
+        bdb_tran_abort(gbl_bdb_state, trans, &bdberr);
+        logmsg(LOGMSG_ERROR, "%s: failed to get table lock, rc=%d\n", __func__,
+               rc);
+        gbl_sc_abort = 1;
+        MEMORY_SYNC;
+        return 0;
+    }
+    free(name);
+
+    Pthread_mutex_lock(&(gbl_bdb_state->children_lock));
+    if (dbnum >= gbl_bdb_state->numchildren ||
+        gbl_bdb_state->children[dbnum] != bdb_state) {
+        /* Nothing to do if the table is gone */
+        Pthread_mutex_unlock(&(gbl_bdb_state->children_lock));
+        bdb_tran_abort(gbl_bdb_state, trans, &bdberr);
+        return 0;
+    }
+    Pthread_mutex_unlock(&(gbl_bdb_state->children_lock));
+
+    if (bdb_state->logical_live_sc == 0) {
+        /* Nothing to do if the sc is not running anymore */
+        goto done;
+    }
+
     struct sc_redo_lsn *last = NULL;
     struct sc_redo_lsn *redo = malloc(sizeof(struct sc_redo_lsn));
     if (redo == NULL) {
-        logmsg(LOGMSG_FATAL, "%s: failed to malloc sc redo\n", __func__);
-        abort();
+        logmsg(LOGMSG_ERROR, "%s: failed to malloc sc redo\n", __func__);
+        gbl_sc_abort = 1;
+        MEMORY_SYNC;
+        goto done;
     }
     redo->lsn = *((DB_LSN *)arg);
     /* We must have table lock here and so the list will not go away */
@@ -1497,6 +1548,9 @@ static int update_logical_redo_lsn(void *obj, void *arg)
 
     Pthread_cond_signal(&bdb_state->sc_redo_wait);
     Pthread_mutex_unlock(&bdb_state->sc_redo_lk);
+
+done:
+    bdb_tran_abort(gbl_bdb_state, trans, &bdberr);
     return 0;
 }
 
